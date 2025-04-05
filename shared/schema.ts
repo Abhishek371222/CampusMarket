@@ -1,6 +1,7 @@
-import { pgTable, text, serial, integer, boolean, timestamp, json, real } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, json, real, foreignKey } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { relations } from "drizzle-orm";
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -13,12 +14,25 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const usersRelations = relations(users, ({ many }) => ({
+  listings: many(listings),
+  sentMessages: many(messages, { relationName: "sender" }),
+  receivedMessages: many(messages, { relationName: "receiver" }),
+  reviews: many(reviews, { relationName: "reviewer" }),
+  receivedReviews: many(reviews, { relationName: "seller" }),
+  favorites: many(favorites),
+}));
+
 export const categories = pgTable("categories", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
   itemCount: integer("item_count").default(0).notNull()
 });
+
+export const categoriesRelations = relations(categories, ({ many }) => ({
+  listings: many(listings),
+}));
 
 export const listings = pgTable("listings", {
   id: serial("id").primaryKey(),
@@ -29,36 +43,84 @@ export const listings = pgTable("listings", {
   location: text("location").notNull(),
   images: text("images").array().notNull(),
   isUrgent: boolean("is_urgent").default(false).notNull(),
-  categoryId: integer("category_id").notNull(),
-  sellerId: integer("seller_id").notNull(),
+  categoryId: integer("category_id").notNull().references(() => categories.id),
+  sellerId: integer("seller_id").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   attachments: text("attachments").array(),
 });
 
+export const listingsRelations = relations(listings, ({ one, many }) => ({
+  category: one(categories, {
+    fields: [listings.categoryId],
+    references: [categories.id],
+  }),
+  seller: one(users, {
+    fields: [listings.sellerId],
+    references: [users.id],
+  }),
+  messages: many(messages),
+  reviews: many(reviews),
+  favorites: many(favorites),
+}));
+
 export const messages = pgTable("messages", {
   id: serial("id").primaryKey(),
-  senderId: integer("sender_id").notNull(),
-  receiverId: integer("receiver_id").notNull(),
-  listingId: integer("listing_id").notNull(),
+  senderId: integer("sender_id").notNull().references(() => users.id),
+  receiverId: integer("receiver_id").notNull().references(() => users.id),
+  listingId: integer("listing_id").notNull().references(() => listings.id),
   content: text("content").notNull(),
   read: boolean("read").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull()
 });
 
+export const messagesRelations = relations(messages, ({ one }) => ({
+  sender: one(users, {
+    fields: [messages.senderId],
+    references: [users.id],
+    relationName: "sender"
+  }),
+  receiver: one(users, {
+    fields: [messages.receiverId],
+    references: [users.id],
+    relationName: "receiver"
+  }),
+  listing: one(listings, {
+    fields: [messages.listingId],
+    references: [listings.id],
+  }),
+}));
+
 export const reviews = pgTable("reviews", {
   id: serial("id").primaryKey(),
-  reviewerId: integer("reviewer_id").notNull(),
-  sellerId: integer("seller_id").notNull(),
-  listingId: integer("listing_id").notNull(),
+  reviewerId: integer("reviewer_id").notNull().references(() => users.id),
+  sellerId: integer("seller_id").notNull().references(() => users.id),
+  listingId: integer("listing_id").notNull().references(() => listings.id),
   rating: integer("rating").notNull(),
   comment: text("comment"),
   createdAt: timestamp("created_at").defaultNow().notNull()
 });
 
+export const reviewsRelations = relations(reviews, ({ one }) => ({
+  reviewer: one(users, {
+    fields: [reviews.reviewerId],
+    references: [users.id],
+    relationName: "reviewer"
+  }),
+  seller: one(users, {
+    fields: [reviews.sellerId],
+    references: [users.id],
+    relationName: "seller"
+  }),
+  listing: one(listings, {
+    fields: [reviews.listingId],
+    references: [listings.id],
+  }),
+}));
+
 export const favorites = pgTable("favorites", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull(),
-  listingId: integer("listing_id").notNull(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  listingId: integer("listing_id").notNull().references(() => listings.id),
 });
 
 // Insert Schemas
