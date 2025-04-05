@@ -62,12 +62,14 @@ async function initializeDatabase() {
   if (existingCategories.length === 0) {
     // Seed categories
     const defaultCategories: InsertCategory[] = [
-      { name: "Furniture", slug: "furniture" },
-      { name: "Books & Notes", slug: "books-and-notes" },
-      { name: "Electronics", slug: "electronics" },
-      { name: "Clothing", slug: "clothing" },
-      { name: "Vehicles", slug: "vehicles" },
-      { name: "Services", slug: "services" }
+      { name: "Ethnic Wear", slug: "ethnic-wear" },
+      { name: "Streetwear", slug: "streetwear" },
+      { name: "Athleisure", slug: "athleisure" },
+      { name: "Luxury Accessories", slug: "luxury-accessories" },
+      { name: "Sustainable Fashion", slug: "sustainable-fashion" },
+      { name: "Vintage Clothing", slug: "vintage-clothing" },
+      { name: "Footwear", slug: "footwear" },
+      { name: "Jewelry", slug: "jewelry" }
     ];
 
     for (const category of defaultCategories) {
@@ -191,7 +193,8 @@ export class DatabaseStorage implements IStorage {
       query = query.limit(filters.limit);
     }
     
-    return query;
+    // Execute the query and return the results
+    return await query;
   }
 
   async getListingById(id: number): Promise<Listing | undefined> {
@@ -328,12 +331,12 @@ export class DatabaseStorage implements IStorage {
 
   // Favorite methods
   async getUserFavorites(userId: number): Promise<Listing[]> {
-    return db.select({
-      ...listings
-    })
-    .from(listings)
-    .innerJoin(favorites, eq(listings.id, favorites.listingId))
-    .where(eq(favorites.userId, userId));
+    const result = await db.select()
+      .from(listings)
+      .innerJoin(favorites, eq(listings.id, favorites.listingId))
+      .where(eq(favorites.userId, userId));
+    
+    return result.map(row => row.listings);
   }
 
   async addToFavorites(userId: number, listingId: number): Promise<Favorite> {
