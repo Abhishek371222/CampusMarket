@@ -1,95 +1,50 @@
-import { pgTable, text, serial, integer, boolean, timestamp, doublePrecision } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, json, real } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// User schema
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
   email: text("email").notNull().unique(),
-  fullName: text("full_name").notNull(),
-  profileImage: text("profile_image"),
-  bio: text("bio"),
+  displayName: text("display_name").notNull(),
+  avatar: text("avatar"),
   isAdmin: boolean("is_admin").default(false).notNull(),
-  campus: text("campus"),
-  createdAt: timestamp("created_at").defaultNow().notNull()
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const insertUserSchema = createInsertSchema(users).omit({
-  id: true,
-  isAdmin: true,
-  createdAt: true
+export const categories = pgTable("categories", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  itemCount: integer("item_count").default(0).notNull()
 });
 
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
-
-// Listing categories
-export const listingCategories = [
-  "furniture",
-  "textbooks",
-  "electronics",
-  "clothing",
-  "academic",
-  "accessories",
-  "other"
-] as const;
-
-export const conditions = [
-  "new",
-  "like-new",
-  "good",
-  "fair",
-  "poor"
-] as const;
-
-// Listings schema
 export const listings = pgTable("listings", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
   description: text("description").notNull(),
-  price: doublePrecision("price").notNull(),
-  category: text("category").notNull(),
+  price: real("price").notNull(),
   condition: text("condition").notNull(),
   location: text("location").notNull(),
   images: text("images").array().notNull(),
-  pdfUrl: text("pdf_url"),
-  isUrgent: boolean("is_urgent").default(false),
-  isSold: boolean("is_sold").default(false),
-  userId: integer("user_id").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull()
+  isUrgent: boolean("is_urgent").default(false).notNull(),
+  categoryId: integer("category_id").notNull(),
+  sellerId: integer("seller_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  attachments: text("attachments").array(),
 });
 
-export const insertListingSchema = createInsertSchema(listings).omit({
-  id: true,
-  createdAt: true
-});
-
-export type InsertListing = z.infer<typeof insertListingSchema>;
-export type Listing = typeof listings.$inferSelect;
-
-// Messages schema
 export const messages = pgTable("messages", {
   id: serial("id").primaryKey(),
   senderId: integer("sender_id").notNull(),
   receiverId: integer("receiver_id").notNull(),
   listingId: integer("listing_id").notNull(),
   content: text("content").notNull(),
-  isRead: boolean("is_read").default(false),
+  read: boolean("read").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull()
 });
 
-export const insertMessageSchema = createInsertSchema(messages).omit({
-  id: true,
-  isRead: true,
-  createdAt: true
-});
-
-export type InsertMessage = z.infer<typeof insertMessageSchema>;
-export type Message = typeof messages.$inferSelect;
-
-// Reviews schema
 export const reviews = pgTable("reviews", {
   id: serial("id").primaryKey(),
   reviewerId: integer("reviewer_id").notNull(),
@@ -100,26 +55,65 @@ export const reviews = pgTable("reviews", {
   createdAt: timestamp("created_at").defaultNow().notNull()
 });
 
-export const insertReviewSchema = createInsertSchema(reviews).omit({
-  id: true,
-  createdAt: true
-});
-
-export type InsertReview = z.infer<typeof insertReviewSchema>;
-export type Review = typeof reviews.$inferSelect;
-
-// Saved listings schema
-export const savedListings = pgTable("saved_listings", {
+export const favorites = pgTable("favorites", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
   listingId: integer("listing_id").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull()
 });
 
-export const insertSavedListingSchema = createInsertSchema(savedListings).omit({
+// Insert Schemas
+export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
-  createdAt: true
+  createdAt: true,
+}).extend({
+  confirmPassword: z.string().min(6)
+}).refine(data => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
 });
 
-export type InsertSavedListing = z.infer<typeof insertSavedListingSchema>;
-export type SavedListing = typeof savedListings.$inferSelect;
+export const insertListingSchema = createInsertSchema(listings).omit({
+  id: true,
+  sellerId: true,
+  createdAt: true,
+});
+
+export const insertMessageSchema = createInsertSchema(messages).omit({
+  id: true,
+  senderId: true,
+  createdAt: true,
+  read: true,
+});
+
+export const insertReviewSchema = createInsertSchema(reviews).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertFavoriteSchema = createInsertSchema(favorites).omit({
+  id: true,
+});
+
+export const insertCategorySchema = createInsertSchema(categories).omit({
+  id: true,
+  itemCount: true,
+});
+
+// Types
+export type User = typeof users.$inferSelect;
+export type InsertUser = z.infer<typeof insertUserSchema>;
+
+export type Category = typeof categories.$inferSelect;
+export type InsertCategory = z.infer<typeof insertCategorySchema>;
+
+export type Listing = typeof listings.$inferSelect;
+export type InsertListing = z.infer<typeof insertListingSchema>;
+
+export type Message = typeof messages.$inferSelect;
+export type InsertMessage = z.infer<typeof insertMessageSchema>;
+
+export type Review = typeof reviews.$inferSelect;
+export type InsertReview = z.infer<typeof insertReviewSchema>;
+
+export type Favorite = typeof favorites.$inferSelect;
+export type InsertFavorite = z.infer<typeof insertFavoriteSchema>;

@@ -1,440 +1,380 @@
 import { 
-  users, listings, messages, reviews, savedListings,
-  type User, type InsertUser, 
-  type Listing, type InsertListing,
-  type Message, type InsertMessage,
-  type Review, type InsertReview,
-  type SavedListing, type InsertSavedListing
+  users, type User, type InsertUser,
+  categories, type Category, type InsertCategory,
+  listings, type Listing, type InsertListing,
+  messages, type Message, type InsertMessage,
+  reviews, type Review, type InsertReview,
+  favorites, type Favorite, type InsertFavorite
 } from "@shared/schema";
 
 export interface IStorage {
   // User methods
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
-  getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
-  updateUser(id: number, data: Partial<User>): Promise<User | undefined>;
+  
+  // Category methods
+  getCategories(): Promise<Category[]>;
+  getCategoryBySlug(slug: string): Promise<Category | undefined>;
+  createCategory(category: InsertCategory): Promise<Category>;
   
   // Listing methods
-  getListing(id: number): Promise<Listing | undefined>;
   getListings(filters?: {
-    category?: string;
-    searchQuery?: string;
-    priceMin?: number;
-    priceMax?: number;
+    categoryId?: number;
+    search?: string;
+    minPrice?: number;
+    maxPrice?: number;
     condition?: string;
     location?: string;
-    userId?: number;
+    sellerId?: number;
     limit?: number;
     offset?: number;
   }): Promise<Listing[]>;
-  getFeaturedListings(limit?: number): Promise<Listing[]>;
-  getRecentListings(limit?: number): Promise<Listing[]>;
-  createListing(listing: InsertListing): Promise<Listing>;
-  updateListing(id: number, data: Partial<Listing>): Promise<Listing | undefined>;
+  getListingById(id: number): Promise<Listing | undefined>;
+  createListing(listing: InsertListing, sellerId: number): Promise<Listing>;
+  updateListing(id: number, listing: Partial<InsertListing>): Promise<Listing | undefined>;
   deleteListing(id: number): Promise<boolean>;
   
   // Message methods
-  getMessage(id: number): Promise<Message | undefined>;
   getMessagesByUser(userId: number): Promise<Message[]>;
-  getMessagesBetweenUsers(senderId: number, receiverId: number, listingId: number): Promise<Message[]>;
-  getConversations(userId: number): Promise<{
-    otherUserId: number;
-    otherUsername: string;
-    otherProfileImage: string | null;
-    listingId: number;
-    listingTitle: string;
-    lastMessage: string;
-    unreadCount: number;
-    lastMessageDate: Date;
-  }[]>;
-  createMessage(message: InsertMessage): Promise<Message>;
-  markMessagesAsRead(senderId: number, receiverId: number, listingId: number): Promise<boolean>;
+  getMessagesBetweenUsers(user1Id: number, user2Id: number, listingId: number): Promise<Message[]>;
+  createMessage(message: InsertMessage, senderId: number): Promise<Message>;
+  markMessageAsRead(id: number): Promise<Message | undefined>;
   
   // Review methods
-  getReview(id: number): Promise<Review | undefined>;
-  getReviewsByUser(userId: number): Promise<Review[]>;
-  getReviewsBySeller(sellerId: number): Promise<Review[]>;
-  createReview(review: InsertReview): Promise<Review>;
+  getReviewsForSeller(sellerId: number): Promise<Review[]>;
+  getReviewForListing(listingId: number, reviewerId: number): Promise<Review | undefined>;
+  createReview(review: InsertReview, reviewerId: number): Promise<Review>;
   
-  // Saved listings methods
-  getSavedListings(userId: number): Promise<Listing[]>;
-  saveListingForUser(savedListing: InsertSavedListing): Promise<SavedListing>;
-  removeSavedListing(userId: number, listingId: number): Promise<boolean>;
-  isListingSaved(userId: number, listingId: number): Promise<boolean>;
+  // Favorite methods
+  getUserFavorites(userId: number): Promise<Listing[]>;
+  addToFavorites(userId: number, listingId: number): Promise<Favorite>;
+  removeFromFavorites(userId: number, listingId: number): Promise<boolean>;
+  isFavorite(userId: number, listingId: number): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
   private users: Map<number, User>;
+  private categories: Map<number, Category>;
   private listings: Map<number, Listing>;
   private messages: Map<number, Message>;
   private reviews: Map<number, Review>;
-  private savedListings: Map<number, SavedListing>;
+  private favorites: Map<number, Favorite>;
   
   private userIdCounter: number;
+  private categoryIdCounter: number;
   private listingIdCounter: number;
   private messageIdCounter: number;
   private reviewIdCounter: number;
-  private savedListingIdCounter: number;
-  
+  private favoriteIdCounter: number;
+
   constructor() {
     this.users = new Map();
+    this.categories = new Map();
     this.listings = new Map();
     this.messages = new Map();
     this.reviews = new Map();
-    this.savedListings = new Map();
+    this.favorites = new Map();
     
     this.userIdCounter = 1;
+    this.categoryIdCounter = 1;
     this.listingIdCounter = 1;
     this.messageIdCounter = 1;
     this.reviewIdCounter = 1;
-    this.savedListingIdCounter = 1;
+    this.favoriteIdCounter = 1;
     
-    // Initialize with a mock admin user for testing
-    this.createUser({
-      username: "admin",
-      password: "password123",
-      email: "admin@campusmarket.com",
-      fullName: "Admin User",
-      bio: "System administrator",
-      campus: "Main Campus",
-      profileImage: "https://randomuser.me/api/portraits/men/1.jpg"
-    }).then(user => {
-      this.users.set(user.id, { ...user, isAdmin: true });
+    // Initialize with some categories
+    this.initializeCategories();
+  }
+
+  private initializeCategories() {
+    const defaultCategories: InsertCategory[] = [
+      { name: "Furniture", slug: "furniture" },
+      { name: "Books & Notes", slug: "books-and-notes" },
+      { name: "Electronics", slug: "electronics" },
+      { name: "Clothing", slug: "clothing" },
+      { name: "Vehicles", slug: "vehicles" },
+      { name: "Services", slug: "services" }
+    ];
+
+    defaultCategories.forEach(category => {
+      this.createCategory(category);
     });
   }
-  
+
   // User methods
   async getUser(id: number): Promise<User | undefined> {
     return this.users.get(id);
   }
-  
+
   async getUserByUsername(username: string): Promise<User | undefined> {
     return Array.from(this.users.values()).find(
-      (user) => user.username.toLowerCase() === username.toLowerCase()
+      (user) => user.username === username
     );
   }
-  
-  async getUserByEmail(email: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.email.toLowerCase() === email.toLowerCase()
-    );
-  }
-  
+
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = this.userIdCounter++;
-    const createdAt = new Date();
-    const user: User = { ...insertUser, id, isAdmin: false, createdAt };
+    const now = new Date();
+    const user: User = { 
+      ...insertUser, 
+      id, 
+      createdAt: now,
+      isAdmin: false
+    };
     this.users.set(id, user);
     return user;
   }
-  
-  async updateUser(id: number, data: Partial<User>): Promise<User | undefined> {
-    const user = this.users.get(id);
-    if (!user) return undefined;
-    
-    const updatedUser = { ...user, ...data };
-    this.users.set(id, updatedUser);
-    return updatedUser;
+
+  // Category methods
+  async getCategories(): Promise<Category[]> {
+    return Array.from(this.categories.values());
   }
-  
+
+  async getCategoryBySlug(slug: string): Promise<Category | undefined> {
+    return Array.from(this.categories.values()).find(
+      (category) => category.slug === slug
+    );
+  }
+
+  async createCategory(insertCategory: InsertCategory): Promise<Category> {
+    const id = this.categoryIdCounter++;
+    const category: Category = {
+      ...insertCategory,
+      id,
+      itemCount: 0
+    };
+    this.categories.set(id, category);
+    return category;
+  }
+
   // Listing methods
-  async getListing(id: number): Promise<Listing | undefined> {
-    return this.listings.get(id);
-  }
-  
-  async getListings(filters?: {
-    category?: string;
-    searchQuery?: string;
-    priceMin?: number;
-    priceMax?: number;
+  async getListings(filters: {
+    categoryId?: number;
+    search?: string;
+    minPrice?: number;
+    maxPrice?: number;
     condition?: string;
     location?: string;
-    userId?: number;
+    sellerId?: number;
     limit?: number;
     offset?: number;
-  }): Promise<Listing[]> {
+  } = {}): Promise<Listing[]> {
     let listings = Array.from(this.listings.values());
     
-    if (filters) {
-      if (filters.category) {
-        listings = listings.filter(listing => listing.category === filters.category);
-      }
-      
-      if (filters.searchQuery) {
-        const search = filters.searchQuery.toLowerCase();
-        listings = listings.filter(listing => 
-          listing.title.toLowerCase().includes(search) || 
-          listing.description.toLowerCase().includes(search)
-        );
-      }
-      
-      if (filters.priceMin !== undefined) {
-        listings = listings.filter(listing => listing.price >= filters.priceMin!);
-      }
-      
-      if (filters.priceMax !== undefined) {
-        listings = listings.filter(listing => listing.price <= filters.priceMax!);
-      }
-      
-      if (filters.condition) {
-        listings = listings.filter(listing => listing.condition === filters.condition);
-      }
-      
-      if (filters.location) {
-        listings = listings.filter(listing => listing.location === filters.location);
-      }
-      
-      if (filters.userId !== undefined) {
-        listings = listings.filter(listing => listing.userId === filters.userId);
-      }
-      
-      // Sort by newest first
-      listings = listings.sort((a, b) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-      
-      // Apply offset and limit if specified
-      if (filters.offset !== undefined) {
-        listings = listings.slice(filters.offset);
-      }
-      
-      if (filters.limit !== undefined) {
-        listings = listings.slice(0, filters.limit);
-      }
+    // Apply filters
+    if (filters.categoryId !== undefined) {
+      listings = listings.filter(listing => listing.categoryId === filters.categoryId);
     }
     
-    return listings;
-  }
-  
-  async getFeaturedListings(limit: number = 4): Promise<Listing[]> {
-    // Here we simulate featured listings by preferring urgent ones first, then newest
-    const listings = Array.from(this.listings.values())
-      .filter(listing => !listing.isSold)
-      .sort((a, b) => {
-        // Sort by urgent first
-        if (a.isUrgent && !b.isUrgent) return -1;
-        if (!a.isUrgent && b.isUrgent) return 1;
-        // Then sort by date
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      })
-      .slice(0, limit);
+    if (filters.search) {
+      const searchLower = filters.search.toLowerCase();
+      listings = listings.filter(listing => 
+        listing.title.toLowerCase().includes(searchLower) || 
+        listing.description.toLowerCase().includes(searchLower)
+      );
+    }
     
-    return listings;
-  }
-  
-  async getRecentListings(limit: number = 4): Promise<Listing[]> {
-    const listings = Array.from(this.listings.values())
-      .filter(listing => !listing.isSold)
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .slice(0, limit);
+    if (filters.minPrice !== undefined) {
+      listings = listings.filter(listing => listing.price >= filters.minPrice!);
+    }
     
-    return listings;
+    if (filters.maxPrice !== undefined) {
+      listings = listings.filter(listing => listing.price <= filters.maxPrice!);
+    }
+    
+    if (filters.condition) {
+      listings = listings.filter(listing => listing.condition === filters.condition);
+    }
+    
+    if (filters.location) {
+      listings = listings.filter(listing => listing.location === filters.location);
+    }
+    
+    if (filters.sellerId !== undefined) {
+      listings = listings.filter(listing => listing.sellerId === filters.sellerId);
+    }
+    
+    // Sort by newest first
+    listings.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    
+    // Apply pagination
+    const offset = filters.offset || 0;
+    const limit = filters.limit || listings.length;
+    
+    return listings.slice(offset, offset + limit);
   }
-  
-  async createListing(insertListing: InsertListing): Promise<Listing> {
+
+  async getListingById(id: number): Promise<Listing | undefined> {
+    return this.listings.get(id);
+  }
+
+  async createListing(insertListing: InsertListing, sellerId: number): Promise<Listing> {
     const id = this.listingIdCounter++;
-    const createdAt = new Date();
-    const listing: Listing = { ...insertListing, id, createdAt };
+    const now = new Date();
+    const listing: Listing = {
+      ...insertListing,
+      id,
+      sellerId,
+      createdAt: now
+    };
     this.listings.set(id, listing);
+    
+    // Update category item count
+    const category = this.categories.get(insertListing.categoryId);
+    if (category) {
+      this.categories.set(category.id, {
+        ...category,
+        itemCount: category.itemCount + 1
+      });
+    }
+    
     return listing;
   }
-  
-  async updateListing(id: number, data: Partial<Listing>): Promise<Listing | undefined> {
+
+  async updateListing(id: number, updateData: Partial<InsertListing>): Promise<Listing | undefined> {
     const listing = this.listings.get(id);
     if (!listing) return undefined;
     
-    const updatedListing = { ...listing, ...data };
+    const updatedListing: Listing = {
+      ...listing,
+      ...updateData
+    };
+    
     this.listings.set(id, updatedListing);
     return updatedListing;
   }
-  
+
   async deleteListing(id: number): Promise<boolean> {
+    const listing = this.listings.get(id);
+    if (!listing) return false;
+    
+    // Update category item count
+    const category = this.categories.get(listing.categoryId);
+    if (category) {
+      this.categories.set(category.id, {
+        ...category,
+        itemCount: Math.max(0, category.itemCount - 1)
+      });
+    }
+    
     return this.listings.delete(id);
   }
-  
+
   // Message methods
-  async getMessage(id: number): Promise<Message | undefined> {
-    return this.messages.get(id);
-  }
-  
   async getMessagesByUser(userId: number): Promise<Message[]> {
-    return Array.from(this.messages.values())
-      .filter(message => message.senderId === userId || message.receiverId === userId)
-      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    return Array.from(this.messages.values()).filter(
+      message => message.senderId === userId || message.receiverId === userId
+    ).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
-  
-  async getMessagesBetweenUsers(senderId: number, receiverId: number, listingId: number): Promise<Message[]> {
+
+  async getMessagesBetweenUsers(user1Id: number, user2Id: number, listingId: number): Promise<Message[]> {
     return Array.from(this.messages.values())
       .filter(message => 
-        (message.senderId === senderId && message.receiverId === receiverId && message.listingId === listingId) ||
-        (message.senderId === receiverId && message.receiverId === senderId && message.listingId === listingId)
+        (message.senderId === user1Id && message.receiverId === user2Id && message.listingId === listingId) || 
+        (message.senderId === user2Id && message.receiverId === user1Id && message.listingId === listingId)
       )
-      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
   }
-  
-  async getConversations(userId: number): Promise<{
-    otherUserId: number;
-    otherUsername: string;
-    otherProfileImage: string | null;
-    listingId: number;
-    listingTitle: string;
-    lastMessage: string;
-    unreadCount: number;
-    lastMessageDate: Date;
-  }[]> {
-    // Get all messages where the user is either sender or receiver
-    const userMessages = Array.from(this.messages.values())
-      .filter(message => message.senderId === userId || message.receiverId === userId);
-    
-    // Group messages by conversation (unique combination of other user and listing)
-    const conversationsMap = new Map<string, {
-      otherUserId: number;
-      listingId: number;
-      messages: Message[];
-    }>();
-    
-    userMessages.forEach(message => {
-      const otherUserId = message.senderId === userId ? message.receiverId : message.senderId;
-      const key = `${otherUserId}-${message.listingId}`;
-      
-      if (!conversationsMap.has(key)) {
-        conversationsMap.set(key, {
-          otherUserId,
-          listingId: message.listingId,
-          messages: []
-        });
-      }
-      
-      conversationsMap.get(key)!.messages.push(message);
-    });
-    
-    // Process each conversation to get the required format
-    const conversations = await Promise.all(Array.from(conversationsMap.values()).map(async conv => {
-      // Get other user info
-      const otherUser = await this.getUser(conv.otherUserId);
-      // Get listing info
-      const listing = await this.getListing(conv.listingId);
-      
-      // Sort messages by date
-      const sortedMessages = conv.messages.sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-      
-      // Get last message
-      const lastMessage = sortedMessages[0];
-      
-      // Count unread messages
-      const unreadCount = sortedMessages.filter(
-        m => m.senderId === conv.otherUserId && !m.isRead
-      ).length;
-      
-      return {
-        otherUserId: conv.otherUserId,
-        otherUsername: otherUser?.username || "Unknown User",
-        otherProfileImage: otherUser?.profileImage || null,
-        listingId: conv.listingId,
-        listingTitle: listing?.title || "Unknown Listing",
-        lastMessage: lastMessage.content,
-        unreadCount,
-        lastMessageDate: new Date(lastMessage.createdAt)
-      };
-    }));
-    
-    // Sort conversations by most recent message
-    return conversations.sort(
-      (a, b) => b.lastMessageDate.getTime() - a.lastMessageDate.getTime()
-    );
-  }
-  
-  async createMessage(insertMessage: InsertMessage): Promise<Message> {
+
+  async createMessage(insertMessage: InsertMessage, senderId: number): Promise<Message> {
     const id = this.messageIdCounter++;
-    const createdAt = new Date();
-    const message: Message = { ...insertMessage, id, isRead: false, createdAt };
+    const now = new Date();
+    const message: Message = {
+      ...insertMessage,
+      id,
+      senderId,
+      read: false,
+      createdAt: now
+    };
     this.messages.set(id, message);
     return message;
   }
-  
-  async markMessagesAsRead(senderId: number, receiverId: number, listingId: number): Promise<boolean> {
-    let updated = false;
+
+  async markMessageAsRead(id: number): Promise<Message | undefined> {
+    const message = this.messages.get(id);
+    if (!message) return undefined;
     
-    Array.from(this.messages.entries())
-      .filter(([_, message]) => 
-        message.senderId === senderId && 
-        message.receiverId === receiverId &&
-        message.listingId === listingId &&
-        !message.isRead
-      )
-      .forEach(([id, message]) => {
-        this.messages.set(id, { ...message, isRead: true });
-        updated = true;
-      });
+    const updatedMessage: Message = {
+      ...message,
+      read: true
+    };
     
-    return updated;
+    this.messages.set(id, updatedMessage);
+    return updatedMessage;
   }
-  
+
   // Review methods
-  async getReview(id: number): Promise<Review | undefined> {
-    return this.reviews.get(id);
-  }
-  
-  async getReviewsByUser(userId: number): Promise<Review[]> {
-    return Array.from(this.reviews.values())
-      .filter(review => review.reviewerId === userId)
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }
-  
-  async getReviewsBySeller(sellerId: number): Promise<Review[]> {
+  async getReviewsForSeller(sellerId: number): Promise<Review[]> {
     return Array.from(this.reviews.values())
       .filter(review => review.sellerId === sellerId)
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
-  
-  async createReview(insertReview: InsertReview): Promise<Review> {
+
+  async getReviewForListing(listingId: number, reviewerId: number): Promise<Review | undefined> {
+    return Array.from(this.reviews.values()).find(
+      review => review.listingId === listingId && review.reviewerId === reviewerId
+    );
+  }
+
+  async createReview(insertReview: InsertReview, reviewerId: number): Promise<Review> {
     const id = this.reviewIdCounter++;
-    const createdAt = new Date();
-    const review: Review = { ...insertReview, id, createdAt };
+    const now = new Date();
+    const review: Review = {
+      ...insertReview,
+      id,
+      reviewerId,
+      createdAt: now
+    };
     this.reviews.set(id, review);
     return review;
   }
-  
-  // Saved listings methods
-  async getSavedListings(userId: number): Promise<Listing[]> {
-    const savedListingEntries = Array.from(this.savedListings.values())
-      .filter(saved => saved.userId === userId);
+
+  // Favorite methods
+  async getUserFavorites(userId: number): Promise<Listing[]> {
+    const favoriteListingIds = Array.from(this.favorites.values())
+      .filter(favorite => favorite.userId === userId)
+      .map(favorite => favorite.listingId);
     
-    const listings = await Promise.all(
-      savedListingEntries.map(async entry => {
-        const listing = await this.getListing(entry.listingId);
-        return listing;
-      })
+    return Array.from(this.listings.values())
+      .filter(listing => favoriteListingIds.includes(listing.id));
+  }
+
+  async addToFavorites(userId: number, listingId: number): Promise<Favorite> {
+    // Check if already a favorite
+    const existingFavorite = Array.from(this.favorites.values()).find(
+      favorite => favorite.userId === userId && favorite.listingId === listingId
     );
     
-    return listings.filter((listing): listing is Listing => listing !== undefined);
-  }
-  
-  async saveListingForUser(insertSavedListing: InsertSavedListing): Promise<SavedListing> {
-    const id = this.savedListingIdCounter++;
-    const createdAt = new Date();
-    const savedListing: SavedListing = { ...insertSavedListing, id, createdAt };
-    this.savedListings.set(id, savedListing);
-    return savedListing;
-  }
-  
-  async removeSavedListing(userId: number, listingId: number): Promise<boolean> {
-    const savedListingEntry = Array.from(this.savedListings.entries())
-      .find(([_, saved]) => saved.userId === userId && saved.listingId === listingId);
-    
-    if (savedListingEntry) {
-      return this.savedListings.delete(savedListingEntry[0]);
+    if (existingFavorite) {
+      return existingFavorite;
     }
     
-    return false;
+    const id = this.favoriteIdCounter++;
+    const favorite: Favorite = {
+      id,
+      userId,
+      listingId
+    };
+    
+    this.favorites.set(id, favorite);
+    return favorite;
   }
-  
-  async isListingSaved(userId: number, listingId: number): Promise<boolean> {
-    return Array.from(this.savedListings.values())
-      .some(saved => saved.userId === userId && saved.listingId === listingId);
+
+  async removeFromFavorites(userId: number, listingId: number): Promise<boolean> {
+    const favorite = Array.from(this.favorites.values()).find(
+      favorite => favorite.userId === userId && favorite.listingId === listingId
+    );
+    
+    if (!favorite) return false;
+    
+    return this.favorites.delete(favorite.id);
+  }
+
+  async isFavorite(userId: number, listingId: number): Promise<boolean> {
+    return !!Array.from(this.favorites.values()).find(
+      favorite => favorite.userId === userId && favorite.listingId === listingId
+    );
   }
 }
 
