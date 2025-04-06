@@ -1,0 +1,8 @@
+my-project
+├── .git
+├── .gitignore
+├── src
+│   └── main
+├── tests
+│   └── test.js
+└── README.md
