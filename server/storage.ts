@@ -62,14 +62,11 @@ async function initializeDatabase() {
   if (existingCategories.length === 0) {
     // Seed categories
     const defaultCategories: InsertCategory[] = [
-      { name: "Ethnic Wear", slug: "ethnic-wear" },
-      { name: "Streetwear", slug: "streetwear" },
-      { name: "Athleisure", slug: "athleisure" },
-      { name: "Luxury Accessories", slug: "luxury-accessories" },
-      { name: "Sustainable Fashion", slug: "sustainable-fashion" },
-      { name: "Vintage Clothing", slug: "vintage-clothing" },
-      { name: "Footwear", slug: "footwear" },
-      { name: "Jewelry", slug: "jewelry" }
+      { name: "Lecture Notes", slug: "lecture-notes" },
+      { name: "Textbooks", slug: "textbooks" },
+      { name: "Furniture", slug: "furniture" },
+      { name: "Electronics", slug: "electronics" },
+      { name: "Dorm Essentials", slug: "dorm-essentials" }
     ];
 
     for (const category of defaultCategories) {
@@ -138,9 +135,8 @@ export class DatabaseStorage implements IStorage {
     limit?: number;
     offset?: number;
   } = {}): Promise<Listing[]> {
-    let query = db.select().from(listings);
-    
-    // Apply filters
+    // Build query conditionally
+    let query;
     const whereConditions = [];
     
     if (filters.categoryId !== undefined) {
@@ -177,24 +173,21 @@ export class DatabaseStorage implements IStorage {
       whereConditions.push(eq(listings.sellerId, filters.sellerId));
     }
     
+    // Apply filters and ordering
     if (whereConditions.length > 0) {
-      query = query.where(and(...whereConditions));
+      query = await db.select().from(listings)
+        .where(and(...whereConditions))
+        .orderBy(desc(listings.createdAt))
+        .limit(filters.limit || 100)
+        .offset(filters.offset || 0);
+    } else {
+      query = await db.select().from(listings)
+        .orderBy(desc(listings.createdAt))
+        .limit(filters.limit || 100)
+        .offset(filters.offset || 0);
     }
     
-    // Sort by newest first
-    query = query.orderBy(desc(listings.createdAt));
-    
-    // Apply pagination
-    if (filters.offset) {
-      query = query.offset(filters.offset);
-    }
-    
-    if (filters.limit) {
-      query = query.limit(filters.limit);
-    }
-    
-    // Execute the query and return the results
-    return await query;
+    return query;
   }
 
   async getListingById(id: number): Promise<Listing | undefined> {
