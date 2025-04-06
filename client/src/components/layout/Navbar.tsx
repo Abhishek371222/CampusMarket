@@ -13,7 +13,10 @@ import {
   LogOut,
   Settings,
   Wallet,
-  HelpCircle
+  HelpCircle,
+  Headphones,
+  UserPlus,
+  Mail
 } from "lucide-react";
 
 import {
@@ -42,12 +45,20 @@ import { Badge } from "@/components/ui/badge";
 
 const Navbar = () => {
   const [location, navigate] = useLocation();
-  const { user, logout, login } = useAuth();
+  const { user, logout, login, register } = useAuth();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [mobileSearchVisible, setMobileSearchVisible] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
   const [loginData, setLoginData] = useState({ username: "", password: "" });
+  const [signupData, setSignupData] = useState({ 
+    username: "", 
+    password: "", 
+    confirmPassword: "", 
+    email: "", 
+    displayName: "" 
+  });
 
   // Get unread message count
   const { data: conversations } = useQuery({
@@ -80,6 +91,36 @@ const Navbar = () => {
       toast({
         title: "Login failed",
         description: "Invalid username or password",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (signupData.password !== signupData.confirmPassword) {
+      toast({
+        title: "Passwords don't match",
+        description: "Please make sure your passwords match",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      // Use register function passed from the parent component
+      await register(signupData);
+      setLoginOpen(false);
+      setIsSignUp(false);
+      toast({
+        title: "Registration successful",
+        description: `Welcome to CampusMarket, ${signupData.displayName}!`,
+      });
+    } catch (error) {
+      toast({
+        title: "Registration failed",
+        description: error instanceof Error ? error.message : "Unknown error occurred",
         variant: "destructive",
       });
     }
@@ -221,40 +262,131 @@ const Navbar = () => {
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Login to CampusMarket</DialogTitle>
+                  <DialogTitle>{isSignUp ? "Sign Up for CampusMarket" : "Login to CampusMarket"}</DialogTitle>
                   <DialogDescription>
-                    Enter your credentials to access your account.
+                    {isSignUp 
+                      ? "Create an account to start buying and selling on campus." 
+                      : "Enter your credentials to access your account."}
                   </DialogDescription>
                 </DialogHeader>
-                <form onSubmit={handleLogin} className="space-y-4 pt-4">
-                  <div className="space-y-2">
-                    <label htmlFor="username" className="text-sm font-medium">
-                      Username
-                    </label>
-                    <Input
-                      id="username"
-                      type="text"
-                      value={loginData.username}
-                      onChange={(e) => setLoginData({...loginData, username: e.target.value})}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label htmlFor="password" className="text-sm font-medium">
-                      Password
-                    </label>
-                    <Input
-                      id="password"
-                      type="password"
-                      value={loginData.password}
-                      onChange={(e) => setLoginData({...loginData, password: e.target.value})}
-                      required
-                    />
-                  </div>
-                  <Button type="submit" className="w-full bg-[#6B46C1] hover:bg-[#6B46C1]/90">
-                    Login
-                  </Button>
-                </form>
+                
+                {isSignUp ? (
+                  <form onSubmit={handleSignUp} className="space-y-4 pt-4">
+                    <div className="space-y-2">
+                      <label htmlFor="signup-username" className="text-sm font-medium">
+                        Username
+                      </label>
+                      <Input
+                        id="signup-username"
+                        type="text"
+                        value={signupData.username}
+                        onChange={(e) => setSignupData({...signupData, username: e.target.value})}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label htmlFor="signup-email" className="text-sm font-medium">
+                        Email
+                      </label>
+                      <Input
+                        id="signup-email"
+                        type="email"
+                        value={signupData.email}
+                        onChange={(e) => setSignupData({...signupData, email: e.target.value})}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label htmlFor="signup-displayname" className="text-sm font-medium">
+                        Display Name
+                      </label>
+                      <Input
+                        id="signup-displayname"
+                        type="text"
+                        value={signupData.displayName}
+                        onChange={(e) => setSignupData({...signupData, displayName: e.target.value})}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label htmlFor="signup-password" className="text-sm font-medium">
+                        Password
+                      </label>
+                      <Input
+                        id="signup-password"
+                        type="password"
+                        value={signupData.password}
+                        onChange={(e) => setSignupData({...signupData, password: e.target.value})}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label htmlFor="signup-confirm-password" className="text-sm font-medium">
+                        Confirm Password
+                      </label>
+                      <Input
+                        id="signup-confirm-password"
+                        type="password"
+                        value={signupData.confirmPassword}
+                        onChange={(e) => setSignupData({...signupData, confirmPassword: e.target.value})}
+                        required
+                      />
+                    </div>
+                    <Button type="submit" className="w-full bg-[#6B46C1] hover:bg-[#6B46C1]/90">
+                      Sign Up
+                    </Button>
+                    <div className="text-center text-sm">
+                      Already have an account?{" "}
+                      <button
+                        type="button"
+                        className="text-[#6B46C1] hover:underline font-medium"
+                        onClick={() => setIsSignUp(false)}
+                      >
+                        Login
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <form onSubmit={handleLogin} className="space-y-4 pt-4">
+                    <div className="space-y-2">
+                      <label htmlFor="username" className="text-sm font-medium">
+                        Username
+                      </label>
+                      <Input
+                        id="username"
+                        type="text"
+                        value={loginData.username}
+                        onChange={(e) => setLoginData({...loginData, username: e.target.value})}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label htmlFor="password" className="text-sm font-medium">
+                        Password
+                      </label>
+                      <Input
+                        id="password"
+                        type="password"
+                        value={loginData.password}
+                        onChange={(e) => setLoginData({...loginData, password: e.target.value})}
+                        required
+                      />
+                    </div>
+                    <Button type="submit" className="w-full bg-[#6B46C1] hover:bg-[#6B46C1]/90">
+                      Login
+                    </Button>
+                    <div className="text-center text-sm">
+                      Don't have an account?{" "}
+                      <button
+                        type="button"
+                        className="text-[#6B46C1] hover:underline font-medium"
+                        onClick={() => setIsSignUp(true)}
+                      >
+                        Sign Up
+                      </button>
+                    </div>
+                  </form>
+                )}
               </DialogContent>
             </Dialog>
           )}

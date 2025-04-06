@@ -20,6 +20,7 @@ import NotFound from "@/pages/not-found";
 import Navbar from "./components/layout/Navbar";
 import Footer from "./components/layout/Footer";
 import MobileMenu from "./components/layout/MobileMenu";
+import LiveSupportIcon from "./components/LiveSupportIcon";
 
 function App() {
   return (
@@ -47,6 +48,7 @@ function App() {
           </AnimatePresence>
           <Footer />
           <MobileMenu />
+          <LiveSupportIcon />
           <Toaster />
         </div>
       </AuthProvider>
