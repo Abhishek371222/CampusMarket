@@ -3,7 +3,6 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
 
-// Define all tables first
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
@@ -23,6 +22,10 @@ export const categories = pgTable("categories", {
   itemCount: integer("item_count").default(0).notNull()
 });
 
+export const categoriesRelations = relations(categories, ({ many }) => ({
+  listings: many(listings),
+}));
+
 export const listings = pgTable("listings", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
@@ -38,77 +41,6 @@ export const listings = pgTable("listings", {
   attachments: text("attachments").array(),
 });
 
-export const messages = pgTable("messages", {
-  id: serial("id").primaryKey(),
-  senderId: integer("sender_id").notNull().references(() => users.id),
-  receiverId: integer("receiver_id").notNull().references(() => users.id),
-  listingId: integer("listing_id").notNull().references(() => listings.id),
-  content: text("content").notNull(),
-  read: boolean("read").default(false).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull()
-});
-
-export const reviews = pgTable("reviews", {
-  id: serial("id").primaryKey(),
-  reviewerId: integer("reviewer_id").notNull().references(() => users.id),
-  sellerId: integer("seller_id").notNull().references(() => users.id),
-  listingId: integer("listing_id").notNull().references(() => listings.id),
-  rating: integer("rating").notNull(),
-  comment: text("comment"),
-  createdAt: timestamp("created_at").defaultNow().notNull()
-});
-
-export const favorites = pgTable("favorites", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().references(() => users.id),
-  listingId: integer("listing_id").notNull().references(() => listings.id),
-});
-
-export const walletTransactions = pgTable("wallet_transactions", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().references(() => users.id),
-  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
-  type: text("type").notNull(), // 'deposit', 'withdraw', 'purchase', 'sale'
-  status: text("status").notNull(), // 'pending', 'completed', 'failed'
-  reference: text("reference"), // Order ID, payment reference, etc.
-  createdAt: timestamp("created_at").defaultNow().notNull()
-});
-
-export const orders = pgTable("orders", {
-  id: serial("id").primaryKey(),
-  buyerId: integer("buyer_id").notNull().references(() => users.id),
-  sellerId: integer("seller_id").notNull().references(() => users.id),
-  listingId: integer("listing_id").notNull().references(() => listings.id),
-  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
-  status: text("status").notNull(), // 'pending', 'completed', 'cancelled'
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export const chatSupportMessages = pgTable("chat_support_messages", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().references(() => users.id),
-  isFromUser: boolean("is_from_user").notNull(),
-  content: text("content").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-// Then define all relationships
-export const usersRelations = relations(users, ({ many }) => ({
-  listings: many(listings),
-  sentMessages: many(messages, { relationName: "sender" }),
-  receivedMessages: many(messages, { relationName: "receiver" }),
-  reviews: many(reviews, { relationName: "reviewer" }),
-  receivedReviews: many(reviews, { relationName: "seller" }),
-  favorites: many(favorites),
-  walletTransactions: many(walletTransactions),
-  orders: many(orders, { relationName: "buyer" }),
-  soldItems: many(orders, { relationName: "seller" }),
-}));
-
-export const categoriesRelations = relations(categories, ({ many }) => ({
-  listings: many(listings),
-}));
-
 export const listingsRelations = relations(listings, ({ one, many }) => ({
   category: one(categories, {
     fields: [listings.categoryId],
@@ -122,6 +54,16 @@ export const listingsRelations = relations(listings, ({ one, many }) => ({
   reviews: many(reviews),
   favorites: many(favorites),
 }));
+
+export const messages = pgTable("messages", {
+  id: serial("id").primaryKey(),
+  senderId: integer("sender_id").notNull().references(() => users.id),
+  receiverId: integer("receiver_id").notNull().references(() => users.id),
+  listingId: integer("listing_id").notNull().references(() => listings.id),
+  content: text("content").notNull(),
+  read: boolean("read").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull()
+});
 
 export const messagesRelations = relations(messages, ({ one }) => ({
   sender: one(users, {
@@ -140,6 +82,16 @@ export const messagesRelations = relations(messages, ({ one }) => ({
   }),
 }));
 
+export const reviews = pgTable("reviews", {
+  id: serial("id").primaryKey(),
+  reviewerId: integer("reviewer_id").notNull().references(() => users.id),
+  sellerId: integer("seller_id").notNull().references(() => users.id),
+  listingId: integer("listing_id").notNull().references(() => listings.id),
+  rating: integer("rating").notNull(),
+  comment: text("comment"),
+  createdAt: timestamp("created_at").defaultNow().notNull()
+});
+
 export const reviewsRelations = relations(reviews, ({ one }) => ({
   reviewer: one(users, {
     fields: [reviews.reviewerId],
@@ -157,12 +109,38 @@ export const reviewsRelations = relations(reviews, ({ one }) => ({
   }),
 }));
 
+export const favorites = pgTable("favorites", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  listingId: integer("listing_id").notNull().references(() => listings.id),
+});
+
+export const walletTransactions = pgTable("wallet_transactions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  type: text("type").notNull(), // 'deposit', 'withdraw', 'purchase', 'sale'
+  status: text("status").notNull(), // 'pending', 'completed', 'failed'
+  reference: text("reference"), // Order ID, payment reference, etc.
+  createdAt: timestamp("created_at").defaultNow().notNull()
+});
+
 export const walletTransactionsRelations = relations(walletTransactions, ({ one }) => ({
   user: one(users, {
     fields: [walletTransactions.userId],
     references: [users.id],
   }),
 }));
+
+export const orders = pgTable("orders", {
+  id: serial("id").primaryKey(),
+  buyerId: integer("buyer_id").notNull().references(() => users.id),
+  sellerId: integer("seller_id").notNull().references(() => users.id),
+  listingId: integer("listing_id").notNull().references(() => listings.id),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  status: text("status").notNull(), // 'pending', 'completed', 'cancelled'
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
 
 export const ordersRelations = relations(orders, ({ one }) => ({
   buyer: one(users, {
@@ -181,6 +159,14 @@ export const ordersRelations = relations(orders, ({ one }) => ({
   }),
 }));
 
+export const chatSupportMessages = pgTable("chat_support_messages", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  isFromUser: boolean("is_from_user").notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const chatSupportMessagesRelations = relations(chatSupportMessages, ({ one }) => ({
   user: one(users, {
     fields: [chatSupportMessages.userId],
@@ -192,7 +178,6 @@ export const chatSupportMessagesRelations = relations(chatSupportMessages, ({ on
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
-  walletBalance: true,
 }).extend({
   confirmPassword: z.string().min(6)
 }).refine(data => data.password === data.confirmPassword, {
@@ -215,7 +200,6 @@ export const insertMessageSchema = createInsertSchema(messages).omit({
 
 export const insertReviewSchema = createInsertSchema(reviews).omit({
   id: true,
-  reviewerId: true,
   createdAt: true,
 });
 
@@ -226,23 +210,6 @@ export const insertFavoriteSchema = createInsertSchema(favorites).omit({
 export const insertCategorySchema = createInsertSchema(categories).omit({
   id: true,
   itemCount: true,
-});
-
-export const insertWalletTransactionSchema = createInsertSchema(walletTransactions).omit({
-  id: true,
-  userId: true,
-  createdAt: true,
-});
-
-export const insertOrderSchema = createInsertSchema(orders).omit({
-  id: true,
-  buyerId: true,
-  createdAt: true,
-});
-
-export const insertChatSupportMessageSchema = createInsertSchema(chatSupportMessages).omit({
-  id: true,
-  createdAt: true,
 });
 
 // Types
@@ -263,12 +230,3 @@ export type InsertReview = z.infer<typeof insertReviewSchema>;
 
 export type Favorite = typeof favorites.$inferSelect;
 export type InsertFavorite = z.infer<typeof insertFavoriteSchema>;
-
-export type WalletTransaction = typeof walletTransactions.$inferSelect;
-export type InsertWalletTransaction = z.infer<typeof insertWalletTransactionSchema>;
-
-export type Order = typeof orders.$inferSelect;
-export type InsertOrder = z.infer<typeof insertOrderSchema>;
-
-export type ChatSupportMessage = typeof chatSupportMessages.$inferSelect;
-export type InsertChatSupportMessage = z.infer<typeof insertChatSupportMessageSchema>;

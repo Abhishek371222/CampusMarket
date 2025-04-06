@@ -4,7 +4,10 @@ import {
   listings, type Listing, type InsertListing,
   messages, type Message, type InsertMessage,
   reviews, type Review, type InsertReview,
-  favorites, type Favorite, type InsertFavorite
+  favorites, type Favorite, type InsertFavorite,
+  walletTransactions, type WalletTransaction, type InsertWalletTransaction,
+  orders, type Order, type InsertOrder,
+  chatSupportMessages, type ChatSupportMessage, type InsertChatSupportMessage
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, sql, like, gte, lte } from "drizzle-orm";
@@ -53,6 +56,23 @@ export interface IStorage {
   addToFavorites(userId: number, listingId: number): Promise<Favorite>;
   removeFromFavorites(userId: number, listingId: number): Promise<boolean>;
   isFavorite(userId: number, listingId: number): Promise<boolean>;
+  
+  // Wallet methods
+  getUserWalletBalance(userId: number): Promise<string>;
+  getUserWalletTransactions(userId: number): Promise<WalletTransaction[]>;
+  addToWallet(userId: number, amount: number, reference?: string): Promise<WalletTransaction>;
+  withdrawFromWallet(userId: number, amount: number, reference?: string): Promise<WalletTransaction>;
+  
+  // Order methods
+  getUserOrders(userId: number): Promise<Order[]>;
+  getUserSales(userId: number): Promise<Order[]>;
+  getOrderById(id: number): Promise<Order | undefined>;
+  createOrder(buyerId: number, sellerId: number, listingId: number, amount: number): Promise<Order>;
+  updateOrderStatus(id: number, status: string): Promise<Order | undefined>;
+  
+  // Chat Support methods
+  getUserChatSupport(userId: number): Promise<ChatSupportMessage[]>;
+  createChatSupportMessage(userId: number, content: string, isFromUser: boolean): Promise<ChatSupportMessage>;
 }
 
 // Initialize the database with seed categories
@@ -380,6 +400,186 @@ export class DatabaseStorage implements IStorage {
       );
     
     return result.length > 0;
+  }
+
+  // Wallet methods
+  async getUserWalletBalance(userId: number): Promise<string> {
+    const user = await this.getUser(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+    return user.walletBalance.toString();
+  }
+
+  async getUserWalletTransactions(userId: number): Promise<WalletTransaction[]> {
+    return db.select()
+      .from(walletTransactions)
+      .where(eq(walletTransactions.userId, userId))
+      .orderBy(desc(walletTransactions.createdAt));
+  }
+
+  async addToWallet(userId: number, amount: number, reference?: string): Promise<WalletTransaction> {
+    if (amount <= 0) {
+      throw new Error("Amount must be greater than zero");
+    }
+
+    // Create transaction
+    const [transaction] = await db.insert(walletTransactions).values({
+      userId,
+      amount: amount.toString(),
+      type: 'deposit',
+      status: 'completed',
+      reference: reference || null
+    }).returning();
+
+    // Update user balance
+    await db.update(users)
+      .set({ 
+        walletBalance: sql`${users.walletBalance} + ${amount}` 
+      })
+      .where(eq(users.id, userId));
+
+    return transaction;
+  }
+
+  async withdrawFromWallet(userId: number, amount: number, reference?: string): Promise<WalletTransaction> {
+    if (amount <= 0) {
+      throw new Error("Amount must be greater than zero");
+    }
+
+    // Check if user has enough balance
+    const user = await this.getUser(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    const currentBalance = parseFloat(user.walletBalance.toString());
+    if (currentBalance < amount) {
+      throw new Error("Insufficient wallet balance");
+    }
+
+    // Create transaction
+    const [transaction] = await db.insert(walletTransactions).values({
+      userId,
+      amount: amount.toString(),
+      type: 'withdraw',
+      status: 'completed',
+      reference: reference || null
+    }).returning();
+
+    // Update user balance
+    await db.update(users)
+      .set({ 
+        walletBalance: sql`${users.walletBalance} - ${amount}` 
+      })
+      .where(eq(users.id, userId));
+
+    return transaction;
+  }
+
+  // Order methods
+  async getUserOrders(userId: number): Promise<Order[]> {
+    return db.select()
+      .from(orders)
+      .where(eq(orders.buyerId, userId))
+      .orderBy(desc(orders.createdAt));
+  }
+
+  async getUserSales(userId: number): Promise<Order[]> {
+    return db.select()
+      .from(orders)
+      .where(eq(orders.sellerId, userId))
+      .orderBy(desc(orders.createdAt));
+  }
+
+  async getOrderById(id: number): Promise<Order | undefined> {
+    const result = await db.select()
+      .from(orders)
+      .where(eq(orders.id, id));
+    return result[0];
+  }
+
+  async createOrder(buyerId: number, sellerId: number, listingId: number, amount: number): Promise<Order> {
+    if (buyerId === sellerId) {
+      throw new Error("Buyer and seller cannot be the same user");
+    }
+
+    // Check if user has enough balance
+    const buyer = await this.getUser(buyerId);
+    if (!buyer) {
+      throw new Error("Buyer not found");
+    }
+
+    const currentBalance = parseFloat(buyer.walletBalance.toString());
+    if (currentBalance < amount) {
+      throw new Error("Insufficient wallet balance");
+    }
+
+    // Create order with pending status
+    const [order] = await db.insert(orders).values({
+      buyerId,
+      sellerId,
+      listingId,
+      amount: amount.toString(),
+      status: 'pending'
+    }).returning();
+
+    // Deduct amount from buyer
+    await this.withdrawFromWallet(buyerId, amount, `Order #${order.id}`);
+
+    return order;
+  }
+
+  async updateOrderStatus(id: number, status: string): Promise<Order | undefined> {
+    if (!['pending', 'completed', 'cancelled'].includes(status)) {
+      throw new Error("Invalid order status");
+    }
+
+    const order = await this.getOrderById(id);
+    if (!order) {
+      throw new Error("Order not found");
+    }
+
+    if (order.status === 'completed') {
+      throw new Error("Cannot update a completed order");
+    }
+
+    const [updatedOrder] = await db.update(orders)
+      .set({ status })
+      .where(eq(orders.id, id))
+      .returning();
+
+    // If order is completed, add funds to seller
+    if (status === 'completed' && order.status !== 'completed') {
+      const amount = parseFloat(order.amount.toString());
+      await this.addToWallet(order.sellerId, amount, `Order #${order.id}`);
+    }
+
+    // If order is cancelled and was previously pending, refund buyer
+    if (status === 'cancelled' && order.status === 'pending') {
+      const amount = parseFloat(order.amount.toString());
+      await this.addToWallet(order.buyerId, amount, `Refund: Order #${order.id}`);
+    }
+
+    return updatedOrder;
+  }
+
+  // Chat Support methods
+  async getUserChatSupport(userId: number): Promise<ChatSupportMessage[]> {
+    return db.select()
+      .from(chatSupportMessages)
+      .where(eq(chatSupportMessages.userId, userId))
+      .orderBy(chatSupportMessages.createdAt);
+  }
+
+  async createChatSupportMessage(userId: number, content: string, isFromUser: boolean): Promise<ChatSupportMessage> {
+    const [message] = await db.insert(chatSupportMessages).values({
+      userId,
+      content,
+      isFromUser
+    }).returning();
+    
+    return message;
   }
 }
 

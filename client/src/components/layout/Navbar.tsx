@@ -11,7 +11,9 @@ import {
   X,
   User,
   LogOut,
-  Settings
+  Settings,
+  Wallet,
+  HelpCircle
 } from "lucide-react";
 
 import {
@@ -186,6 +188,16 @@ const Navbar = () => {
                   <DropdownMenuItem asChild>
                     <Link href="/my-listings" className="cursor-pointer flex items-center">
                       <Menu className="mr-2 h-4 w-4" /> Your Listings
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/wallet" className="cursor-pointer flex items-center">
+                      <Wallet className="mr-2 h-4 w-4" /> Your Wallet
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/support" className="cursor-pointer flex items-center">
+                      <HelpCircle className="mr-2 h-4 w-4" /> Support Chat
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>

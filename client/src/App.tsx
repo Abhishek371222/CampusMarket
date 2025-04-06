@@ -14,6 +14,8 @@ import Messages from "@/pages/Messages";
 import Profile from "@/pages/Profile";
 import CreateListing from "@/pages/CreateListing";
 import Search from "@/pages/Search";
+import Wallet from "@/pages/Wallet";
+import ChatSupport from "@/pages/ChatSupport";
 import NotFound from "@/pages/not-found";
 import Navbar from "./components/layout/Navbar";
 import Footer from "./components/layout/Footer";
@@ -37,6 +39,8 @@ function App() {
                 <Route path="/profile" component={Profile} />
                 <Route path="/create-listing" component={CreateListing} />
                 <Route path="/search" component={Search} />
+                <Route path="/wallet" component={Wallet} />
+                <Route path="/support" component={ChatSupport} />
                 <Route component={NotFound} />
               </Switch>
             </main>

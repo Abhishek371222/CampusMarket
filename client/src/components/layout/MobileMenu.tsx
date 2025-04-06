@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/lib/authContext';
-import { Home, Tag, Heart, MessageSquare, Bell, Plus, X } from 'lucide-react';
+import { Home, Tag, Heart, MessageSquare, Bell, Plus, X, Wallet, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useQuery } from '@tanstack/react-query';
@@ -125,6 +125,18 @@ const MobileMenu = () => {
                         <Badge variant="destructive" className="ml-auto bg-[#ED8936]">
                           3
                         </Badge>
+                      </div>
+                    </Link>
+                    <Link href="/wallet" onClick={closeMenu}>
+                      <div className={`flex items-center px-4 py-3 text-[#2D3748] ${location === '/wallet' ? 'bg-gray-100 text-[#6B46C1]' : 'hover:bg-gray-100'}`}>
+                        <Wallet className="w-5 h-5 mr-3" />
+                        <span>Wallet</span>
+                      </div>
+                    </Link>
+                    <Link href="/support" onClick={closeMenu}>
+                      <div className={`flex items-center px-4 py-3 text-[#2D3748] ${location === '/support' ? 'bg-gray-100 text-[#6B46C1]' : 'hover:bg-gray-100'}`}>
+                        <HelpCircle className="w-5 h-5 mr-3" />
+                        <span>Support Chat</span>
                       </div>
                     </Link>
                     <div className="border-t border-gray-200 my-2"></div>

@@ -1,10 +1,21 @@
-import express, { type Express, Request, Response } from "express";
+import express, { type Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import session from "express-session";
 import { storage } from "./storage";
 import MemoryStore from "memorystore";
 import { z } from "zod";
-import { insertUserSchema, insertListingSchema, insertMessageSchema, insertReviewSchema } from "@shared/schema";
+import Stripe from "stripe";
+
+// Extend the session type to include userId
+declare module 'express-session' {
+  interface SessionData {
+    userId: number;
+  }
+}
+import { 
+  insertUserSchema, insertListingSchema, insertMessageSchema, insertReviewSchema,
+  insertWalletTransactionSchema, insertOrderSchema, insertChatSupportMessageSchema 
+} from "@shared/schema";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -740,6 +751,291 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Validation error", errors: error.errors });
       }
       return res.status(500).json({ message: "Failed to create review" });
+    }
+  });
+
+  // Initialize Stripe
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    apiVersion: '2023-10-16'
+  });
+
+  // Wallet Routes
+  app.get("/api/wallet/balance", isAuthenticated, async (req, res) => {
+    try {
+      const balance = await storage.getUserWalletBalance(req.session.userId);
+      return res.json({ balance });
+    } catch (error) {
+      return res.status(500).json({ message: "Failed to fetch wallet balance" });
+    }
+  });
+
+  app.get("/api/wallet/transactions", isAuthenticated, async (req, res) => {
+    try {
+      const transactions = await storage.getUserWalletTransactions(req.session.userId);
+      return res.json(transactions);
+    } catch (error) {
+      return res.status(500).json({ message: "Failed to fetch wallet transactions" });
+    }
+  });
+
+  // Stripe payment intent for adding funds to wallet
+  app.post("/api/wallet/create-payment-intent", isAuthenticated, async (req, res) => {
+    try {
+      const { amount } = req.body;
+      if (!amount || isNaN(amount) || amount <= 0) {
+        return res.status(400).json({ message: "Valid amount is required" });
+      }
+
+      // Convert amount to paisa (Stripe requires smallest currency unit)
+      const amountInPaisa = Math.round(amount * 100);
+
+      // Create a payment intent with Stripe
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amountInPaisa,
+        currency: 'inr', // Indian Rupee
+        metadata: {
+          userId: req.session.userId.toString(),
+          type: 'wallet_deposit'
+        }
+      });
+
+      return res.json({
+        clientSecret: paymentIntent.client_secret
+      });
+    } catch (error) {
+      console.error("Stripe error:", error);
+      return res.status(500).json({ message: "Failed to create payment intent" });
+    }
+  });
+
+  // Confirm wallet deposit after successful Stripe payment
+  app.post("/api/wallet/confirm-deposit", isAuthenticated, async (req, res) => {
+    try {
+      const { paymentIntentId, amount } = req.body;
+      
+      if (!paymentIntentId || !amount) {
+        return res.status(400).json({ message: "Payment intent ID and amount are required" });
+      }
+
+      // Verify the payment intent with Stripe
+      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+      
+      if (
+        paymentIntent.status !== 'succeeded' || 
+        paymentIntent.metadata.userId !== req.session.userId.toString() ||
+        paymentIntent.metadata.type !== 'wallet_deposit'
+      ) {
+        return res.status(400).json({ message: "Invalid or unsuccessful payment" });
+      }
+
+      // Add the amount to the user's wallet
+      const transaction = await storage.addToWallet(
+        req.session.userId, 
+        amount, 
+        `Deposit via Stripe: ${paymentIntentId}`
+      );
+
+      return res.json(transaction);
+    } catch (error) {
+      console.error("Error confirming deposit:", error);
+      return res.status(500).json({ message: "Failed to confirm deposit" });
+    }
+  });
+
+  // Withdraw funds from wallet
+  app.post("/api/wallet/withdraw", isAuthenticated, async (req, res) => {
+    try {
+      const { amount, accountDetails } = req.body;
+      
+      if (!amount || isNaN(amount) || amount <= 0) {
+        return res.status(400).json({ message: "Valid amount is required" });
+      }
+
+      if (!accountDetails) {
+        return res.status(400).json({ message: "Account details are required for withdrawal" });
+      }
+
+      // Check if user has sufficient balance
+      const balance = await storage.getUserWalletBalance(req.session.userId);
+      if (parseFloat(balance) < amount) {
+        return res.status(400).json({ message: "Insufficient balance" });
+      }
+
+      // Process the withdrawal (in a real app, this would initiate a bank transfer)
+      const transaction = await storage.withdrawFromWallet(
+        req.session.userId, 
+        amount, 
+        `Withdrawal to account: ${JSON.stringify(accountDetails).substring(0, 50)}...`
+      );
+
+      return res.json(transaction);
+    } catch (error) {
+      return res.status(500).json({ message: "Failed to process withdrawal" });
+    }
+  });
+
+  // Order Routes
+  app.get("/api/orders/my-orders", isAuthenticated, async (req, res) => {
+    try {
+      const orders = await storage.getUserOrders(req.session.userId);
+      return res.json(orders);
+    } catch (error) {
+      return res.status(500).json({ message: "Failed to fetch orders" });
+    }
+  });
+
+  app.get("/api/orders/my-sales", isAuthenticated, async (req, res) => {
+    try {
+      const sales = await storage.getUserSales(req.session.userId);
+      return res.json(sales);
+    } catch (error) {
+      return res.status(500).json({ message: "Failed to fetch sales" });
+    }
+  });
+
+  app.get("/api/orders/:id", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid order ID" });
+      }
+      
+      const order = await storage.getOrderById(id);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+      
+      // Check if the user is either the buyer or the seller
+      if (order.buyerId !== req.session.userId && order.sellerId !== req.session.userId) {
+        return res.status(403).json({ message: "You don't have permission to view this order" });
+      }
+      
+      return res.json(order);
+    } catch (error) {
+      return res.status(500).json({ message: "Failed to fetch order" });
+    }
+  });
+
+  app.post("/api/orders", isAuthenticated, async (req, res) => {
+    try {
+      const { listingId } = req.body;
+      
+      if (!listingId) {
+        return res.status(400).json({ message: "Listing ID is required" });
+      }
+      
+      // Check if the listing exists
+      const listing = await storage.getListingById(parseInt(listingId));
+      if (!listing) {
+        return res.status(404).json({ message: "Listing not found" });
+      }
+      
+      // Check if the user is not buying their own listing
+      if (listing.sellerId === req.session.userId) {
+        return res.status(400).json({ message: "You cannot buy your own listing" });
+      }
+      
+      // Check if user has sufficient wallet balance
+      const balance = await storage.getUserWalletBalance(req.session.userId);
+      if (parseFloat(balance) < listing.price) {
+        return res.status(400).json({ message: "Insufficient wallet balance" });
+      }
+      
+      // Create the order
+      const order = await storage.createOrder(
+        req.session.userId,
+        listing.sellerId,
+        listing.id,
+        listing.price
+      );
+      
+      return res.status(201).json(order);
+    } catch (error) {
+      return res.status(500).json({ message: "Failed to create order" });
+    }
+  });
+
+  app.put("/api/orders/:id/status", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid order ID" });
+      }
+      
+      const { status } = req.body;
+      if (!status) {
+        return res.status(400).json({ message: "Status is required" });
+      }
+      
+      // Check if the order exists
+      const order = await storage.getOrderById(id);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+      
+      // Check if the user is either the buyer or the seller
+      const isBuyer = order.buyerId === req.session.userId;
+      const isSeller = order.sellerId === req.session.userId;
+      
+      if (!isBuyer && !isSeller) {
+        return res.status(403).json({ message: "You don't have permission to update this order" });
+      }
+      
+      // Validate status transitions based on current status and user role
+      if (order.status === 'pending' && status === 'completed' && isBuyer) {
+        // Only buyer can mark order as completed from pending state
+        const updatedOrder = await storage.updateOrderStatus(id, status);
+        return res.json(updatedOrder);
+      } else if (order.status === 'pending' && status === 'cancelled') {
+        // Both buyer and seller can cancel a pending order
+        const updatedOrder = await storage.updateOrderStatus(id, status);
+        return res.json(updatedOrder);
+      } else {
+        return res.status(400).json({ 
+          message: "Invalid status transition or you don't have permission to perform this action" 
+        });
+      }
+    } catch (error) {
+      return res.status(500).json({ message: "Failed to update order status" });
+    }
+  });
+
+  // Chat Support Routes
+  app.get("/api/chat-support", isAuthenticated, async (req, res) => {
+    try {
+      const messages = await storage.getUserChatSupport(req.session.userId);
+      return res.json(messages);
+    } catch (error) {
+      return res.status(500).json({ message: "Failed to fetch chat support messages" });
+    }
+  });
+
+  app.post("/api/chat-support", isAuthenticated, async (req, res) => {
+    try {
+      const { content } = req.body;
+      
+      if (!content) {
+        return res.status(400).json({ message: "Message content is required" });
+      }
+      
+      // Create user message
+      const userMessage = await storage.createChatSupportMessage(
+        req.session.userId,
+        content,
+        true // isFromUser = true
+      );
+      
+      // Here you would typically integrate with a chatbot API or service
+      // For now, we'll create a simple automated response
+      const botResponse = await storage.createChatSupportMessage(
+        req.session.userId,
+        "Thanks for your message! Our support team will get back to you soon.",
+        false // isFromUser = false
+      );
+      
+      return res.json([userMessage, botResponse]);
+    } catch (error) {
+      return res.status(500).json({ message: "Failed to send message" });
     }
   });
 
