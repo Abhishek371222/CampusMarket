@@ -8,7 +8,8 @@ import { apiRequest } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/lib/authContext";
 import { useToast } from "@/hooks/use-toast";
-import { cardHoverAnimation } from "@/lib/animations";
+import { cardHoverAnimation, fadeInUp } from "@/lib/animations";
+import { formatCurrency, smoothTransition } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import UrgentBadge from "@/components/ui/UrgentBadge";
@@ -116,9 +117,14 @@ const ListingCard = ({ listing }) => {
             <h3 className="font-semibold text-lg leading-tight line-clamp-2">
               {listing.title}
             </h3>
-            <span className="font-bold text-xl text-[#6B46C1]">
-              ${listing.price.toFixed(2)}
-            </span>
+            <motion.span 
+              className="font-bold text-xl text-[#6B46C1]"
+              initial={{ scale: 1 }}
+              whileHover={{ scale: 1.05 }}
+              transition={smoothTransition}
+            >
+              {formatCurrency(listing.price)}
+            </motion.span>
           </div>
           <p className="text-gray-500 text-sm mb-2 line-clamp-2">
             {listing.description}
