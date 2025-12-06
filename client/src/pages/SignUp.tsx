@@ -25,11 +25,10 @@ const signUpSchema = z.object({
 });
 
 export default function SignUp() {
-  const { login } = useAuth();
+  const { signup } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const [step, setStep] = useState(1);
 
   const form = useForm<z.infer<typeof signUpSchema>>({
     resolver: zodResolver(signUpSchema),
@@ -46,20 +45,25 @@ export default function SignUp() {
 
   const onSubmit = async (values: z.infer<typeof signUpSchema>) => {
     setIsLoading(true);
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // Login the user (mock)
-    login(values.email);
-    
-    toast({
-      title: "Account Created! 🎉",
-      description: "Welcome to Campus Market. Please verify your email.",
-    });
-    
-    setIsLoading(false);
-    setLocation("/profile");
+    try {
+      const fullName = `${values.firstName} ${values.lastName}`;
+      await signup(fullName, values.email, values.password);
+      
+      toast({
+        title: "Account Created!",
+        description: "Welcome to Campus Market.",
+      });
+      
+      setLocation("/");
+    } catch (error: any) {
+      toast({
+        title: "Sign Up Failed",
+        description: error?.message || "Unable to create account. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -231,7 +235,7 @@ export default function SignUp() {
                 )}
               />
 
-              <Button type="submit" className="w-full h-11 text-base" disabled={isLoading}>
+              <Button type="submit" className="w-full h-11 text-base" disabled={isLoading} data-testid="button-signup">
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating Account...
@@ -244,7 +248,7 @@ export default function SignUp() {
           </Form>
         </CardContent>
         <CardFooter className="flex justify-center text-sm text-muted-foreground">
-          Already have an account? <Link href="/login" className="ml-1 text-primary hover:underline font-medium">Log in</Link>
+          Already have an account? <Link href="/login" className="ml-1 text-primary hover:underline font-medium" data-testid="link-login">Log in</Link>
         </CardFooter>
       </Card>
     </div>
