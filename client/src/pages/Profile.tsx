@@ -1,36 +1,28 @@
 import { useAuth } from "@/lib/auth";
-import { useMarketStore } from "@/lib/mockData";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProductCard } from "@/components/ui/product-card";
 import { useLocation } from "wouter";
-import { Mail, Settings, LogOut, ShieldCheck, CheckCircle2, Upload, Users } from "lucide-react";
+import { LogOut, ShieldCheck, CheckCircle2, Users, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useProducts, useFollowing } from "@/lib/api-hooks";
 
 export default function Profile() {
   const { user, logout } = useAuth();
   const [, setLocation] = useLocation();
-  const { products, wishlist, submitVerification } = useMarketStore();
   const { toast } = useToast();
+  const { data: products, isLoading: productsLoading } = useProducts();
+  const { data: following, isLoading: followingLoading } = useFollowing(user?.id);
 
   if (!user) {
     setLocation("/login");
     return null;
   }
 
-  const myListings = products.filter((p) => p.sellerId === user.id);
-  const wishlistItems = products.filter((p) => wishlist.includes(p.id));
-
-  const handleVerify = () => {
-    submitVerification();
-    toast({
-      title: "Documents Uploaded",
-      description: "Admin will review your student ID shortly.",
-    });
-  };
+  const myListings = products?.filter((p) => p.sellerId === user.id) || [];
+  const followingCount = following?.length || 0;
 
   return (
     <div className="container px-4 md:px-6 py-8">
@@ -38,7 +30,7 @@ export default function Profile() {
       <div className="flex flex-col md:flex-row items-center md:items-start gap-8 mb-12">
         <div className="relative">
            <Avatar className="h-24 w-24 md:h-32 md:w-32 border-4 border-background shadow-xl">
-            <AvatarImage src={user.avatar} alt={user.name} />
+            <AvatarImage src={user.avatar || undefined} alt={user.name} />
             <AvatarFallback className="text-4xl">{user.name[0]}</AvatarFallback>
           </Avatar>
           {user.isVerified && (
@@ -65,20 +57,11 @@ export default function Profile() {
                 Unverified
               </Badge>
             )}
-            <Badge variant="outline" className="text-muted-foreground">
-               <Users className="h-3 w-3 mr-1" /> {user.following.length} Following
+            <Badge variant="outline" className="text-muted-foreground" data-testid="badge-following">
+               <Users className="h-3 w-3 mr-1" /> 
+               {followingLoading ? "..." : followingCount} Following
             </Badge>
           </div>
-
-          {!user.isVerified && user.verificationStatus !== "pending" && (
-            <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg max-w-md">
-              <h4 className="font-semibold text-amber-900 text-sm mb-1">Verify your Student Status</h4>
-              <p className="text-amber-700 text-xs mb-3">Upload your student ID to unlock all marketplace features.</p>
-              <Button size="sm" variant="outline" className="border-amber-300 text-amber-800 hover:bg-amber-100" onClick={handleVerify}>
-                <Upload className="h-4 w-4 mr-2" /> Upload ID
-              </Button>
-            </div>
-          )}
 
           {user.verificationStatus === "pending" && (
             <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg max-w-md">
@@ -90,7 +73,7 @@ export default function Profile() {
         </div>
 
         <div className="flex flex-col gap-2 w-full md:w-auto">
-          <Button variant="outline" onClick={() => logout()}>
+          <Button variant="outline" onClick={() => logout()} data-testid="button-logout">
             <LogOut className="h-4 w-4 mr-2" /> Sign Out
           </Button>
         </div>
@@ -102,19 +85,18 @@ export default function Profile() {
           <TabsTrigger 
             value="listings" 
             className="rounded-none border-b-2 border-transparent px-4 py-3 font-medium text-muted-foreground data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
+            data-testid="tab-listings"
           >
-            My Listings ({myListings.length})
-          </TabsTrigger>
-          <TabsTrigger 
-            value="wishlist" 
-            className="rounded-none border-b-2 border-transparent px-4 py-3 font-medium text-muted-foreground data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
-          >
-            Wishlist ({wishlistItems.length})
+            My Listings ({productsLoading ? "..." : myListings.length})
           </TabsTrigger>
         </TabsList>
         
         <TabsContent value="listings" className="mt-6">
-          {myListings.length > 0 ? (
+          {productsLoading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : myListings.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {myListings.map((product) => (
                 <ProductCard key={product.id} product={product} />
@@ -123,21 +105,7 @@ export default function Profile() {
           ) : (
             <div className="text-center py-12 border-2 border-dashed rounded-xl">
               <p className="text-muted-foreground mb-4">You haven't listed any items yet.</p>
-              <Button onClick={() => setLocation("/sell")}>Start Selling</Button>
-            </div>
-          )}
-        </TabsContent>
-        
-        <TabsContent value="wishlist" className="mt-6">
-          {wishlistItems.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {wishlistItems.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12 border-2 border-dashed rounded-xl">
-              <p className="text-muted-foreground">Your wishlist is empty.</p>
+              <Button onClick={() => setLocation("/sell")} data-testid="button-start-selling">Start Selling</Button>
             </div>
           )}
         </TabsContent>

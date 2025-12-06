@@ -2,17 +2,56 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useMarketStore } from "@/lib/mockData";
-import { ShieldCheck, UserCheck, Activity, AlertTriangle } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { ShieldCheck, UserCheck, AlertTriangle, Loader2 } from "lucide-react";
+import { useUsers, useProducts, useUpdateVerification } from "@/lib/api-hooks";
+import { useToast } from "@/hooks/use-toast";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+
+function ApproveButton({ userId }: { userId: string }) {
+  const { mutate, isPending } = useUpdateVerification(userId);
+  const { toast } = useToast();
+
+  const handleApprove = () => {
+    mutate(
+      { verificationStatus: "verified", isVerified: true },
+      {
+        onSuccess: () => {
+          toast({
+            title: "User Verified",
+            description: "Student ID has been approved successfully.",
+          });
+        },
+        onError: () => {
+          toast({
+            title: "Error",
+            description: "Failed to verify user. Please try again.",
+            variant: "destructive",
+          });
+        },
+      }
+    );
+  };
+
+  return (
+    <Button 
+      size="sm" 
+      onClick={handleApprove} 
+      disabled={isPending}
+      data-testid={`button-approve-${userId}`}
+    >
+      {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Approve ID"}
+    </Button>
+  );
+}
 
 export default function AdminDashboard() {
-  const { users, products, recentActivity, approveVerification } = useMarketStore();
+  const { data: users, isLoading: usersLoading } = useUsers();
+  const { data: products, isLoading: productsLoading } = useProducts();
 
-  const pendingUsers = users.filter(u => u.verificationStatus === "pending");
+  const pendingUsers = users?.filter(u => u.verificationStatus === "pending") || [];
   const stats = [
-    { label: "Total Users", value: users.length, icon: UserCheck },
-    { label: "Active Listings", value: products.filter(p => p.status === "available").length, icon: ShieldCheck },
+    { label: "Total Users", value: users?.length || 0, icon: UserCheck },
+    { label: "Active Listings", value: products?.filter(p => p.status === "available").length || 0, icon: ShieldCheck },
     { label: "Pending Reviews", value: pendingUsers.length, icon: AlertTriangle },
   ];
 
@@ -38,7 +77,9 @@ export default function AdminDashboard() {
               </div>
               <div>
                 <p className="text-sm font-medium text-muted-foreground">{stat.label}</p>
-                <h3 className="text-2xl font-bold">{stat.value}</h3>
+                <h3 className="text-2xl font-bold" data-testid={`stat-${stat.label.toLowerCase().replace(' ', '-')}`}>
+                  {usersLoading || productsLoading ? "..." : stat.value}
+                </h3>
               </div>
             </CardContent>
           </Card>
@@ -56,21 +97,26 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent className="flex-1 overflow-hidden">
             <ScrollArea className="h-full pr-4">
-              {pendingUsers.length > 0 ? (
+              {usersLoading ? (
+                <div className="h-full flex items-center justify-center">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : pendingUsers.length > 0 ? (
                 <div className="space-y-4">
                   {pendingUsers.map((user) => (
-                    <div key={user.id} className="flex items-center justify-between p-4 border rounded-xl bg-muted/20">
+                    <div key={user.id} className="flex items-center justify-between p-4 border rounded-xl bg-muted/20" data-testid={`user-pending-${user.id}`}>
                       <div className="flex items-center gap-3">
-                        <img src={user.avatar} className="h-10 w-10 rounded-full" alt="" />
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage src={user.avatar || undefined} />
+                          <AvatarFallback>{user.name[0]}</AvatarFallback>
+                        </Avatar>
                         <div>
-                          <p className="font-semibold">{user.name}</p>
-                          <p className="text-xs text-muted-foreground">{user.email}</p>
+                          <p className="font-semibold" data-testid={`text-username-${user.id}`}>{user.name}</p>
+                          <p className="text-xs text-muted-foreground" data-testid={`text-email-${user.id}`}>{user.email}</p>
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        <Button size="sm" onClick={() => approveVerification(user.id)}>
-                          Approve ID
-                        </Button>
+                        <ApproveButton userId={user.id} />
                       </div>
                     </div>
                   ))}
@@ -85,25 +131,40 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
 
-        {/* Activity Log */}
+        {/* Recent Users */}
         <Card className="h-[500px] flex flex-col">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Activity className="h-5 w-5" /> System Activity
+              <UserCheck className="h-5 w-5" /> Recent Users
             </CardTitle>
           </CardHeader>
           <CardContent className="flex-1 overflow-hidden">
             <ScrollArea className="h-full pr-4">
-              <div className="space-y-4">
-                {recentActivity.map((log, i) => (
-                  <div key={i} className="flex gap-3 text-sm border-b pb-3 last:border-0">
-                    <span className="text-muted-foreground font-mono text-xs whitespace-nowrap pt-0.5">
-                      {new Date().toLocaleTimeString()}
-                    </span>
-                    <p>{log}</p>
-                  </div>
-                ))}
-              </div>
+              {usersLoading ? (
+                <div className="h-full flex items-center justify-center">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {users?.slice(0, 10).map((user) => (
+                    <div key={user.id} className="flex items-center gap-3 p-3 border rounded-xl" data-testid={`user-item-${user.id}`}>
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={user.avatar || undefined} />
+                        <AvatarFallback>{user.name[0]}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <p className="font-medium text-sm">{user.name}</p>
+                        <p className="text-xs text-muted-foreground">{user.email}</p>
+                      </div>
+                      {user.isVerified && (
+                        <Badge variant="outline" className="text-green-700 border-green-200 bg-green-50">
+                          <ShieldCheck className="h-3 w-3 mr-1" /> Verified
+                        </Badge>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </ScrollArea>
           </CardContent>
         </Card>

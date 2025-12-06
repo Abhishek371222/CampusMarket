@@ -243,6 +243,12 @@ export function useRejectOffer(offerId: string) {
 }
 
 // User Profile Hooks
+export function useUsers() {
+  return useQuery<User[]>({
+    queryKey: ["/api/users"],
+  });
+}
+
 export function useUserProfile(userId: string | undefined) {
   return useQuery<User>({
     queryKey: ["/api/users", userId],
