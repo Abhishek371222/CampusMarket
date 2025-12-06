@@ -51,6 +51,8 @@ export async function registerRoutes(
         locationId: location.id,
       });
 
+      (req as any).session.userId = user.id;
+
       const { password: _, ...userWithoutPassword } = user;
       res.status(201).json(userWithoutPassword);
     } catch (error) {
@@ -59,7 +61,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/login", async (req, res) => {
+  app.post("/api/login", async (req: any, res) => {
     try {
       const { email, password } = req.body;
 
@@ -77,11 +79,54 @@ export async function registerRoutes(
         return res.status(401).json({ message: "Invalid email or password" });
       }
 
+      req.session.userId = user.id;
+
       const { password: _, ...userWithoutPassword } = user;
       res.json(userWithoutPassword);
     } catch (error) {
       console.error("Login error:", error);
       res.status(500).json({ message: "Failed to login" });
+    }
+  });
+
+  app.get("/api/user", async (req: any, res) => {
+    try {
+      if (req.user?.claims?.sub) {
+        const user = await storage.getUserByReplitId(req.user.claims.sub);
+        if (user) {
+          const { password: _, ...userWithoutPassword } = user;
+          return res.json(userWithoutPassword);
+        }
+      }
+
+      if (req.session?.userId) {
+        const user = await storage.getUser(req.session.userId);
+        if (user) {
+          const { password: _, ...userWithoutPassword } = user;
+          return res.json(userWithoutPassword);
+        }
+      }
+
+      res.status(401).json({ message: "Not authenticated" });
+    } catch (error) {
+      console.error("Get user error:", error);
+      res.status(500).json({ message: "Failed to get user" });
+    }
+  });
+
+  app.post("/api/logout", async (req: any, res) => {
+    try {
+      if (req.session) {
+        req.session.destroy((err: any) => {
+          if (err) {
+            console.error("Session destroy error:", err);
+          }
+        });
+      }
+      res.json({ message: "Logged out successfully" });
+    } catch (error) {
+      console.error("Logout error:", error);
+      res.status(500).json({ message: "Failed to logout" });
     }
   });
 
