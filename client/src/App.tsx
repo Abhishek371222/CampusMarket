@@ -1,4 +1,5 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
+import { useEffect } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -14,6 +15,7 @@ import ProductDetail from "@/pages/ProductDetail";
 import Sell from "@/pages/Sell";
 import Profile from "@/pages/Profile";
 import ProfileEdit from "@/pages/ProfileEdit";
+import ProfileSetup from "@/pages/ProfileSetup";
 import Messages from "@/pages/Messages";
 import Login from "@/pages/Login";
 import SignUp from "@/pages/SignUp";
@@ -27,9 +29,26 @@ function AuthenticatedChatbot() {
   return <AiChatbot />;
 }
 
+function ProfileSetupRedirect() {
+  const { user, isLoading } = useAuth();
+  const [location, setLocation] = useLocation();
+  
+  useEffect(() => {
+    if (!isLoading && user && !user.locationId) {
+      const allowedPaths = ["/profile/setup", "/login", "/signup", "/api/logout"];
+      if (!allowedPaths.some(path => location.startsWith(path))) {
+        setLocation("/profile/setup");
+      }
+    }
+  }, [user, isLoading, location, setLocation]);
+  
+  return null;
+}
+
 function Router() {
   return (
     <div className="flex flex-col min-h-screen">
+      <ProfileSetupRedirect />
       <Navbar />
       <main className="flex-1">
         <Switch>
@@ -39,6 +58,7 @@ function Router() {
           <Route path="/sell" component={Sell} />
           <Route path="/profile" component={Profile} />
           <Route path="/profile/edit" component={ProfileEdit} />
+          <Route path="/profile/setup" component={ProfileSetup} />
           <Route path="/messages" component={Messages} />
           <Route path="/login" component={Login} />
           <Route path="/signup" component={SignUp} />
