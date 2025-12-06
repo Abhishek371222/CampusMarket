@@ -4,7 +4,7 @@ import session from "express-session";
 import MemoryStore from "memorystore";
 import bcrypt from "bcryptjs";
 import { storage } from "./storage";
-import { insertUserSchema, insertProductSchema, insertMessageSchema, type User } from "@shared/schema";
+import { insertUserSchema, insertProductSchema, insertMessageSchema, insertOfferSchema, type User } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
 
 declare module "express-session" {
@@ -393,6 +393,128 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Mark message as read error:", error);
       res.status(500).json({ message: "Failed to mark message as read" });
+    }
+  });
+
+  app.post("/api/offers", requireAuth, async (req, res) => {
+    try {
+      const validationResult = insertOfferSchema.safeParse(req.body);
+      
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: fromZodError(validationResult.error).message 
+        });
+      }
+
+      const { productId, amount } = validationResult.data;
+
+      const product = await storage.getProduct(productId);
+      if (!product) {
+        return res.status(404).json({ message: "Product not found" });
+      }
+
+      if (product.sellerId === req.session.userId) {
+        return res.status(400).json({ message: "Cannot make an offer on your own product" });
+      }
+
+      const offer = await storage.createOffer({
+        productId,
+        buyerId: req.session.userId!,
+        amount,
+      });
+
+      res.status(201).json(offer);
+    } catch (error) {
+      console.error("Create offer error:", error);
+      res.status(500).json({ message: "Failed to create offer" });
+    }
+  });
+
+  app.get("/api/offers/product/:productId", requireAuth, async (req, res) => {
+    try {
+      const product = await storage.getProduct(req.params.productId);
+      
+      if (!product) {
+        return res.status(404).json({ message: "Product not found" });
+      }
+
+      if (product.sellerId !== req.session.userId) {
+        return res.status(403).json({ message: "Not authorized to view offers for this product" });
+      }
+
+      const offers = await storage.getOffersByProduct(req.params.productId);
+      res.json(offers);
+    } catch (error) {
+      console.error("Get offers by product error:", error);
+      res.status(500).json({ message: "Failed to get offers" });
+    }
+  });
+
+  app.get("/api/offers/buyer", requireAuth, async (req, res) => {
+    try {
+      const offers = await storage.getOffersByBuyer(req.session.userId!);
+      res.json(offers);
+    } catch (error) {
+      console.error("Get offers by buyer error:", error);
+      res.status(500).json({ message: "Failed to get offers" });
+    }
+  });
+
+  app.patch("/api/offers/:id/accept", requireAuth, async (req, res) => {
+    try {
+      const offer = await storage.getOffer(req.params.id);
+      
+      if (!offer) {
+        return res.status(404).json({ message: "Offer not found" });
+      }
+
+      const product = await storage.getProduct(offer.productId);
+      if (!product) {
+        return res.status(404).json({ message: "Product not found" });
+      }
+
+      if (product.sellerId !== req.session.userId) {
+        return res.status(403).json({ message: "Not authorized to accept this offer" });
+      }
+
+      if (offer.status !== "pending") {
+        return res.status(400).json({ message: "Offer has already been processed" });
+      }
+
+      const updatedOffer = await storage.updateOffer(req.params.id, { status: "accepted" });
+      res.json(updatedOffer);
+    } catch (error) {
+      console.error("Accept offer error:", error);
+      res.status(500).json({ message: "Failed to accept offer" });
+    }
+  });
+
+  app.patch("/api/offers/:id/reject", requireAuth, async (req, res) => {
+    try {
+      const offer = await storage.getOffer(req.params.id);
+      
+      if (!offer) {
+        return res.status(404).json({ message: "Offer not found" });
+      }
+
+      const product = await storage.getProduct(offer.productId);
+      if (!product) {
+        return res.status(404).json({ message: "Product not found" });
+      }
+
+      if (product.sellerId !== req.session.userId) {
+        return res.status(403).json({ message: "Not authorized to reject this offer" });
+      }
+
+      if (offer.status !== "pending") {
+        return res.status(400).json({ message: "Offer has already been processed" });
+      }
+
+      const updatedOffer = await storage.updateOffer(req.params.id, { status: "rejected" });
+      res.json(updatedOffer);
+    } catch (error) {
+      console.error("Reject offer error:", error);
+      res.status(500).json({ message: "Failed to reject offer" });
     }
   });
 
