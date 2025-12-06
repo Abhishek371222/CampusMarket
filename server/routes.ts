@@ -1,11 +1,45 @@
 import type { Express, Request, Response, NextFunction } from "express";
+import express from "express";
 import { createServer, type Server } from "http";
 import bcrypt from "bcryptjs";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
-import { insertUserSchema, insertProductSchema, insertMessageSchema, insertOfferSchema, insertCommunityPostSchema, updateUserSchema, type User } from "@shared/schema";
+import { insertUserSchema, insertProductSchema, insertMessageSchema, insertOfferSchema, insertCommunityPostSchema, insertPostCommentSchema, updateUserSchema, type User } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
 import { chat as aiChat, estimatePrice } from "./openai";
+import { wsHub } from "./websocket";
+
+const uploadDir = path.join(process.cwd(), "uploads");
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const multerStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  },
+});
+
+const upload = multer({
+  storage: multerStorage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif|webp|pdf|doc|docx/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    if (extname && mimetype) {
+      return cb(null, true);
+    }
+    cb(new Error("Only images and documents are allowed"));
+  },
+});
 
 async function getCurrentUserId(req: Request): Promise<string | null> {
   const user = req.user as any;
@@ -1044,6 +1078,238 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Price estimate error:", error);
       res.status(500).json({ message: "Failed to estimate price" });
+    }
+  });
+
+  app.use("/uploads", (req, res, next) => {
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    next();
+  }, express.static(uploadDir));
+
+  app.post("/api/uploads", isAuthenticated, upload.array("files", 5), async (req: any, res) => {
+    try {
+      const userId = await getCurrentUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      const files = req.files as Express.Multer.File[];
+      if (!files || files.length === 0) {
+        return res.status(400).json({ message: "No files uploaded" });
+      }
+
+      const uploadedFiles = await Promise.all(
+        files.map(async (file) => {
+          return storage.createUpload({
+            userId,
+            filename: file.filename,
+            originalName: file.originalname,
+            mimeType: file.mimetype,
+            size: file.size,
+            path: `/uploads/${file.filename}`,
+          });
+        })
+      );
+
+      res.status(201).json(uploadedFiles);
+    } catch (error) {
+      console.error("Upload error:", error);
+      res.status(500).json({ message: "Failed to upload files" });
+    }
+  });
+
+  app.get("/api/uploads", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = await getCurrentUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      const uploads = await storage.getUploadsByUser(userId);
+      res.json(uploads);
+    } catch (error) {
+      console.error("Get uploads error:", error);
+      res.status(500).json({ message: "Failed to get uploads" });
+    }
+  });
+
+  app.delete("/api/uploads/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = await getCurrentUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      const uploadFile = await storage.getUpload(req.params.id);
+      if (!uploadFile) {
+        return res.status(404).json({ message: "Upload not found" });
+      }
+
+      if (uploadFile.userId !== userId) {
+        return res.status(403).json({ message: "Not authorized to delete this upload" });
+      }
+
+      const filePath = path.join(uploadDir, uploadFile.filename);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+
+      await storage.deleteUpload(req.params.id);
+      res.json({ message: "Upload deleted successfully" });
+    } catch (error) {
+      console.error("Delete upload error:", error);
+      res.status(500).json({ message: "Failed to delete upload" });
+    }
+  });
+
+  app.get("/api/notifications", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = await getCurrentUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      const notifications = await storage.getNotificationsByUser(userId);
+      res.json(notifications);
+    } catch (error) {
+      console.error("Get notifications error:", error);
+      res.status(500).json({ message: "Failed to get notifications" });
+    }
+  });
+
+  app.patch("/api/notifications/:id/read", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = await getCurrentUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      await storage.markNotificationAsRead(req.params.id);
+      res.json({ message: "Notification marked as read" });
+    } catch (error) {
+      console.error("Mark notification as read error:", error);
+      res.status(500).json({ message: "Failed to mark notification as read" });
+    }
+  });
+
+  app.patch("/api/notifications/read-all", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = await getCurrentUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      await storage.markAllNotificationsAsRead(userId);
+      res.json({ message: "All notifications marked as read" });
+    } catch (error) {
+      console.error("Mark all notifications as read error:", error);
+      res.status(500).json({ message: "Failed to mark all notifications as read" });
+    }
+  });
+
+  app.get("/api/community/:id/comments", async (req, res) => {
+    try {
+      const comments = await storage.getPostComments(req.params.id);
+      res.json(comments);
+    } catch (error) {
+      console.error("Get post comments error:", error);
+      res.status(500).json({ message: "Failed to get comments" });
+    }
+  });
+
+  app.post("/api/community/:id/comments", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = await getCurrentUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      const post = await storage.getCommunityPost(req.params.id);
+      if (!post) {
+        return res.status(404).json({ message: "Post not found" });
+      }
+
+      const validationResult = insertPostCommentSchema.safeParse({
+        ...req.body,
+        postId: req.params.id,
+      });
+      if (!validationResult.success) {
+        return res.status(400).json({ message: fromZodError(validationResult.error).message });
+      }
+
+      const comment = await storage.createPostComment({
+        ...validationResult.data,
+        authorId: userId,
+      });
+
+      const newCount = post.comments + 1;
+      await storage.updateCommunityPostCommentCount(req.params.id, newCount);
+
+      wsHub.broadcastPostUpdate(req.params.id, { comments: newCount });
+
+      res.status(201).json(comment);
+    } catch (error) {
+      console.error("Create post comment error:", error);
+      res.status(500).json({ message: "Failed to create comment" });
+    }
+  });
+
+  app.delete("/api/community/:postId/comments/:commentId", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = await getCurrentUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      const post = await storage.getCommunityPost(req.params.postId);
+      if (!post) {
+        return res.status(404).json({ message: "Post not found" });
+      }
+
+      await storage.deletePostComment(req.params.commentId);
+      
+      const newCount = Math.max(0, post.comments - 1);
+      await storage.updateCommunityPostCommentCount(req.params.postId, newCount);
+
+      wsHub.broadcastPostUpdate(req.params.postId, { comments: newCount });
+
+      res.json({ message: "Comment deleted successfully" });
+    } catch (error) {
+      console.error("Delete post comment error:", error);
+      res.status(500).json({ message: "Failed to delete comment" });
+    }
+  });
+
+  app.post("/api/community/:id/toggle-like", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = await getCurrentUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      const post = await storage.getCommunityPost(req.params.id);
+      if (!post) {
+        return res.status(404).json({ message: "Post not found" });
+      }
+
+      const existingLike = await storage.getPostLike(req.params.id, userId);
+      
+      let liked: boolean;
+      let newLikeCount: number;
+
+      if (existingLike) {
+        await storage.deletePostLike(req.params.id, userId);
+        newLikeCount = Math.max(0, post.likes - 1);
+        liked = false;
+      } else {
+        await storage.createPostLike(req.params.id, userId);
+        newLikeCount = post.likes + 1;
+        liked = true;
+      }
+
+      await storage.updateCommunityPostLikes(req.params.id, newLikeCount);
+      
+      wsHub.broadcastPostUpdate(req.params.id, { likes: newLikeCount });
+
+      res.json({ liked, likes: newLikeCount });
+    } catch (error) {
+      console.error("Toggle like error:", error);
+      res.status(500).json({ message: "Failed to toggle like" });
+    }
+  });
+
+  app.get("/api/community/:id/like-status", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = await getCurrentUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      const existingLike = await storage.getPostLike(req.params.id, userId);
+      res.json({ liked: !!existingLike });
+    } catch (error) {
+      console.error("Get like status error:", error);
+      res.status(500).json({ message: "Failed to get like status" });
     }
   });
 
