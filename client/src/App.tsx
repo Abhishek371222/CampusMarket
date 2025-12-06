@@ -12,6 +12,7 @@ import Marketplace from "@/pages/Marketplace";
 import ProductDetail from "@/pages/ProductDetail";
 import Sell from "@/pages/Sell";
 import Profile from "@/pages/Profile";
+import ProfileEdit from "@/pages/ProfileEdit";
 import Messages from "@/pages/Messages";
 import Login from "@/pages/Login";
 import SignUp from "@/pages/SignUp";
@@ -30,6 +31,7 @@ function Router() {
           <Route path="/product/:id" component={ProductDetail} />
           <Route path="/sell" component={Sell} />
           <Route path="/profile" component={Profile} />
+          <Route path="/profile/edit" component={ProfileEdit} />
           <Route path="/messages" component={Messages} />
           <Route path="/login" component={Login} />
           <Route path="/signup" component={SignUp} />

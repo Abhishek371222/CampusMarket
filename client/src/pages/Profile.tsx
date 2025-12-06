@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProductCard } from "@/components/ui/product-card";
 import { useLocation } from "wouter";
-import { LogOut, ShieldCheck, CheckCircle2, Users, Loader2 } from "lucide-react";
+import { LogOut, ShieldCheck, CheckCircle2, Users, Loader2, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { useProducts, useFollowing } from "@/lib/api-hooks";
@@ -73,6 +73,9 @@ export default function Profile() {
         </div>
 
         <div className="flex flex-col gap-2 w-full md:w-auto">
+          <Button onClick={() => setLocation("/profile/edit")} data-testid="button-edit-profile">
+            <Pencil className="h-4 w-4 mr-2" /> Edit Profile
+          </Button>
           <Button variant="outline" onClick={() => logout()} data-testid="button-logout">
             <LogOut className="h-4 w-4 mr-2" /> Sign Out
           </Button>

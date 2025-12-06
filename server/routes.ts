@@ -761,6 +761,19 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/locations/:id", async (req, res) => {
+    try {
+      const location = await storage.getLocation(req.params.id);
+      if (!location) {
+        return res.status(404).json({ message: "Location not found" });
+      }
+      res.json(location);
+    } catch (error) {
+      console.error("Get location error:", error);
+      res.status(500).json({ message: "Failed to get location" });
+    }
+  });
+
   app.post("/api/locations", isAuthenticated, async (req: any, res) => {
     try {
       const { country, state, city, pincode } = req.body;
