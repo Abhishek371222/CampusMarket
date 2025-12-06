@@ -21,6 +21,11 @@ import Login from "@/pages/Login";
 import SignUp from "@/pages/SignUp";
 import Community from "@/pages/Community";
 import AdminDashboard from "@/pages/Admin";
+import Privacy from "@/pages/Privacy";
+import Terms from "@/pages/Terms";
+import Cookies from "@/pages/Cookies";
+import Safety from "@/pages/Safety";
+import Support from "@/pages/Support";
 import NotFound from "@/pages/not-found";
 
 function AuthenticatedChatbot() {
@@ -35,7 +40,7 @@ function ProfileSetupRedirect() {
   
   useEffect(() => {
     if (!isLoading && user && !user.locationId) {
-      const allowedPaths = ["/profile/setup", "/login", "/signup", "/api/logout"];
+      const allowedPaths = ["/profile/setup", "/login", "/signup", "/api/logout", "/privacy", "/terms", "/cookies", "/safety", "/support"];
       if (!allowedPaths.some(path => location.startsWith(path))) {
         setLocation("/profile/setup");
       }
@@ -64,6 +69,11 @@ function Router() {
           <Route path="/signup" component={SignUp} />
           <Route path="/community" component={Community} />
           <Route path="/admin" component={AdminDashboard} />
+          <Route path="/privacy" component={Privacy} />
+          <Route path="/terms" component={Terms} />
+          <Route path="/cookies" component={Cookies} />
+          <Route path="/safety" component={Safety} />
+          <Route path="/support" component={Support} />
           <Route component={NotFound} />
         </Switch>
       </main>

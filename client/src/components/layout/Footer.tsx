@@ -1,7 +1,7 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Facebook, Twitter, Instagram, Linkedin, Mail, ExternalLink } from "lucide-react";
+import { Facebook, Twitter, Instagram, Linkedin, Mail } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export function Footer() {
@@ -111,13 +111,26 @@ export function Footer() {
           <div className="flex flex-col gap-4">
             <h3 className="text-sm font-bold uppercase tracking-wider text-foreground">Support & Safety</h3>
             <div className="flex flex-col gap-2">
-              <span className="text-sm text-muted-foreground hover:text-primary transition-colors cursor-pointer flex items-center gap-1">
-                Safety Guidelines <ExternalLink className="h-3 w-3 opacity-50" />
-              </span>
-              <span className="text-sm text-muted-foreground hover:text-primary transition-colors cursor-pointer">Verification Process</span>
-              <span className="text-sm text-muted-foreground hover:text-primary transition-colors cursor-pointer">Report a Scam</span>
-              <span className="text-sm text-muted-foreground hover:text-primary transition-colors cursor-pointer">Community Rules</span>
-              <span className="text-sm text-muted-foreground hover:text-primary transition-colors cursor-pointer">Contact Support</span>
+              <Link href="/safety">
+                <span className="text-sm text-muted-foreground hover:text-primary transition-colors cursor-pointer">
+                  Safety Center
+                </span>
+              </Link>
+              <Link href="/support">
+                <span className="text-sm text-muted-foreground hover:text-primary transition-colors cursor-pointer">
+                  Help & Support
+                </span>
+              </Link>
+              <Link href="/community">
+                <span className="text-sm text-muted-foreground hover:text-primary transition-colors cursor-pointer">
+                  Community Wall
+                </span>
+              </Link>
+              <Link href="/terms">
+                <span className="text-sm text-muted-foreground hover:text-primary transition-colors cursor-pointer">
+                  Community Guidelines
+                </span>
+              </Link>
             </div>
           </div>
 
@@ -150,10 +163,16 @@ export function Footer() {
 
         <div className="mt-12 border-t pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-muted-foreground">
           <p>© 2024 CampusMarket. Built for students, by students.</p>
-          <div className="flex gap-6">
-            <span className="hover:text-foreground cursor-pointer transition-colors">Privacy Policy</span>
-            <span className="hover:text-foreground cursor-pointer transition-colors">Terms of Service</span>
-            <span className="hover:text-foreground cursor-pointer transition-colors">Cookie Policy</span>
+          <div className="flex flex-wrap gap-6">
+            <Link href="/privacy">
+              <span className="hover:text-foreground cursor-pointer transition-colors">Privacy Policy</span>
+            </Link>
+            <Link href="/terms">
+              <span className="hover:text-foreground cursor-pointer transition-colors">Terms of Service</span>
+            </Link>
+            <Link href="/cookies">
+              <span className="hover:text-foreground cursor-pointer transition-colors">Cookie Policy</span>
+            </Link>
           </div>
         </div>
       </div>
