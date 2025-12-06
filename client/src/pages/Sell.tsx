@@ -7,11 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/lib/auth";
-import { useMarketStore } from "@/lib/mockData";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { Upload, X, Wand2, Sparkles, Loader2 } from "lucide-react";
 import { useState } from "react";
+import { useCreateProduct } from "@/lib/api-hooks";
 
 const formSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters"),
@@ -24,10 +24,10 @@ const formSchema = z.object({
 export default function Sell() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
-  const { addProduct } = useMarketStore();
   const { toast } = useToast();
   const [images, setImages] = useState<string[]>([]);
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const createProductMutation = useCreateProduct();
 
   if (!user) {
      setLocation("/login");
@@ -43,7 +43,7 @@ export default function Sell() {
     },
   });
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
     if (images.length === 0) {
       toast({
         title: "Image required",
@@ -53,17 +53,26 @@ export default function Sell() {
       return;
     }
 
-    addProduct({
-      ...values,
-      images: images,
-    });
+    try {
+      await createProductMutation.mutateAsync({
+        ...values,
+        price: values.price.toString(),
+        images: images,
+      });
 
-    toast({
-      title: "Item Listed!",
-      description: "Your product is now live.",
-    });
+      toast({
+        title: "Item Listed!",
+        description: "Your product is now live.",
+      });
 
-    setLocation("/profile");
+      setLocation("/profile");
+    } catch (error) {
+      toast({
+        title: "Failed to list item",
+        description: error instanceof Error ? error.message : "Please try again",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -245,7 +254,22 @@ export default function Sell() {
             />
           </div>
 
-          <Button type="submit" size="lg" className="w-full">List Item</Button>
+          <Button 
+            type="submit" 
+            size="lg" 
+            className="w-full"
+            disabled={createProductMutation.isPending}
+            data-testid="button-list-item"
+          >
+            {createProductMutation.isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Listing...
+              </>
+            ) : (
+              "List Item"
+            )}
+          </Button>
         </form>
       </Form>
     </div>

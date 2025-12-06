@@ -1,7 +1,7 @@
 import { Link } from "wouter";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Product } from "@/lib/mockData";
+import { Product } from "@shared/schema";
 import { formatDistanceToNow } from "date-fns";
 
 interface ProductCardProps {
@@ -45,16 +45,6 @@ export function ProductCard({ product }: ProductCardProps) {
           </h3>
           <p className="font-bold text-xl text-primary">${product.price}</p>
         </CardContent>
-        <CardFooter className="p-4 pt-0 flex items-center gap-2">
-          <img 
-            src={product.sellerAvatar} 
-            alt={product.sellerName}
-            className="w-6 h-6 rounded-full object-cover" 
-          />
-          <span className="text-sm text-muted-foreground truncate">
-            {product.sellerName}
-          </span>
-        </CardFooter>
       </Card>
     </Link>
   );

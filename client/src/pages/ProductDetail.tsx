@@ -1,18 +1,18 @@
 import { useRoute, useLocation } from "wouter";
-import { useMarketStore } from "@/lib/mockData";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Heart, MessageCircle, Share2, ShieldCheck, ArrowLeft, Wand2, Eye, CircleDollarSign } from "lucide-react";
+import { Heart, MessageCircle, Share2, ShieldCheck, ArrowLeft, Wand2, Eye, CircleDollarSign, Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import NotFound from "./not-found";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useProduct, useProductView, useCreateOffer, useCreateChat, useUserProfile, useFollowUser, useUnfollowUser } from "@/lib/api-hooks";
 
 export default function ProductDetail() {
   const [, params] = useRoute("/product/:id");
@@ -22,24 +22,34 @@ export default function ProductDetail() {
   const [offerAmount, setOfferAmount] = useState("");
   const [isOfferOpen, setIsOfferOpen] = useState(false);
   
-  const product = useMarketStore((state) => 
-    state.products.find((p) => p.id === params?.id)
-  );
-  
-  const seller = useMarketStore((state) => 
-    state.users.find((u) => u.id === product?.sellerId)
-  );
+  const { data: product, isLoading: productLoading, error: productError } = useProduct(params?.id);
+  const { data: seller, isLoading: sellerLoading } = useUserProfile(product?.sellerId);
+  const productViewMutation = useProductView(params?.id || "");
+  const createOfferMutation = useCreateOffer();
+  const createChatMutation = useCreateChat();
+  const followUserMutation = useFollowUser(product?.sellerId || "");
+  const unfollowUserMutation = useUnfollowUser(product?.sellerId || "");
 
-  const { toggleWishlist, wishlist, createChat, makeOffer, followUser, currentUser } = useMarketStore();
-  const isInWishlist = useMarketStore((state) => 
-    params?.id ? state.wishlist.includes(params.id) : false
-  );
+  // Note: isFollowing would need to be fetched from followers/following API
+  const isFollowing = false; // TODO: Implement following check
 
-  const isFollowing = seller && currentUser?.following.includes(seller.id);
+  useEffect(() => {
+    if (params?.id && user) {
+      productViewMutation.mutate();
+    }
+  }, [params?.id]);
 
-  if (!product || !seller) return <NotFound />;
+  if (productLoading || sellerLoading) {
+    return (
+      <div className="container px-4 py-16 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
-  const handleContact = () => {
+  if (productError || !product || !seller) return <NotFound />;
+
+  const handleContact = async () => {
     if (!user) {
       setLocation("/login");
       return;
@@ -49,18 +59,65 @@ export default function ProductDetail() {
       return;
     }
     
-    const chatId = createChat(product.id, product.sellerId);
-    setLocation(`/messages?chat=${chatId}`);
+    try {
+      const chat = await createChatMutation.mutateAsync({ 
+        productId: product.id, 
+        sellerId: product.sellerId 
+      });
+      setLocation(`/messages?chat=${chat.id}`);
+    } catch (error) {
+      toast({ 
+        title: "Failed to create chat", 
+        description: error instanceof Error ? error.message : "Please try again",
+        variant: "destructive" 
+      });
+    }
   };
 
-  const handleOffer = () => {
+  const handleOffer = async () => {
     if (!user) {
       setLocation("/login");
       return;
     }
-    makeOffer(product.id, Number(offerAmount));
-    setIsOfferOpen(false);
-    toast({ title: "Offer sent!", description: `You offered $${offerAmount}` });
+    
+    try {
+      await createOfferMutation.mutateAsync({
+        productId: product.id,
+        amount: offerAmount
+      });
+      setIsOfferOpen(false);
+      setOfferAmount("");
+      toast({ title: "Offer sent!", description: `You offered $${offerAmount}` });
+    } catch (error) {
+      toast({ 
+        title: "Failed to send offer", 
+        description: error instanceof Error ? error.message : "Please try again",
+        variant: "destructive" 
+      });
+    }
+  };
+
+  const handleFollow = async () => {
+    if (!user) {
+      setLocation("/login");
+      return;
+    }
+
+    try {
+      if (isFollowing) {
+        await unfollowUserMutation.mutateAsync();
+        toast({ title: `Unfollowed ${seller.name}` });
+      } else {
+        await followUserMutation.mutateAsync();
+        toast({ title: `Following ${seller.name}` });
+      }
+    } catch (error) {
+      toast({ 
+        title: "Failed to update follow status", 
+        description: error instanceof Error ? error.message : "Please try again",
+        variant: "destructive" 
+      });
+    }
   };
 
   return (
@@ -115,23 +172,39 @@ export default function ProductDetail() {
              <div className="flex flex-col gap-2 mb-6">
                 <div className="flex items-center gap-4">
                   <p className="text-4xl font-bold text-primary">${product.price}</p>
-                  {product.aiEstimatedPrice && (
+                  {product.aiEstimatedPriceMin && product.aiEstimatedPriceMax && (
                     <div className="flex items-center gap-1.5 text-sm bg-blue-50 text-blue-700 px-3 py-1 rounded-full border border-blue-100">
                       <Wand2 className="h-3 w-3" />
-                      AI Est: ${product.aiEstimatedPrice.min} - ${product.aiEstimatedPrice.max}
+                      AI Est: ${product.aiEstimatedPriceMin} - ${product.aiEstimatedPriceMax}
                     </div>
                   )}
                 </div>
              </div>
 
              <div className="flex gap-3">
-                <Button size="lg" className="flex-1 gap-2" onClick={handleContact}>
-                   <MessageCircle className="h-5 w-5" /> Chat
+                <Button 
+                  size="lg" 
+                  className="flex-1 gap-2" 
+                  onClick={handleContact}
+                  disabled={createChatMutation.isPending}
+                  data-testid="button-chat"
+                >
+                   {createChatMutation.isPending ? (
+                     <Loader2 className="h-5 w-5 animate-spin" />
+                   ) : (
+                     <MessageCircle className="h-5 w-5" />
+                   )}
+                   Chat
                 </Button>
                 
                 <Dialog open={isOfferOpen} onOpenChange={setIsOfferOpen}>
                   <DialogTrigger asChild>
-                    <Button size="lg" variant="secondary" className="flex-1 gap-2">
+                    <Button 
+                      size="lg" 
+                      variant="secondary" 
+                      className="flex-1 gap-2"
+                      data-testid="button-make-offer"
+                    >
                       <CircleDollarSign className="h-5 w-5" /> Make Offer
                     </Button>
                   </DialogTrigger>
@@ -147,6 +220,7 @@ export default function ProductDetail() {
                           value={offerAmount} 
                           onChange={(e) => setOfferAmount(e.target.value)}
                           placeholder={product.price.toString()}
+                          data-testid="input-offer-amount"
                         />
                       </div>
                       <p className="text-sm text-muted-foreground">
@@ -154,14 +228,19 @@ export default function ProductDetail() {
                       </p>
                     </div>
                     <DialogFooter>
-                      <Button onClick={handleOffer}>Send Offer</Button>
+                      <Button 
+                        onClick={handleOffer}
+                        disabled={createOfferMutation.isPending || !offerAmount}
+                        data-testid="button-send-offer"
+                      >
+                        {createOfferMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        ) : null}
+                        Send Offer
+                      </Button>
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
-
-                <Button variant="outline" size="icon" onClick={() => toggleWishlist(product.id)}>
-                   <Heart className={`h-5 w-5 ${isInWishlist ? "fill-red-500 text-red-500" : ""}`} />
-                </Button>
              </div>
           </div>
 
@@ -186,12 +265,9 @@ export default function ProductDetail() {
              <div className="flex items-center gap-4">
                 <div className="relative">
                   <Avatar className="h-14 w-14">
-                     <AvatarImage src={seller.avatar} />
+                     <AvatarImage src={seller.avatar || undefined} />
                      <AvatarFallback>{seller.name[0]}</AvatarFallback>
                   </Avatar>
-                  {seller.isOnline && (
-                    <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 ring-2 ring-background" />
-                  )}
                 </div>
                 <div>
                    <p className="font-heading font-semibold text-lg">{seller.name}</p>
@@ -201,17 +277,19 @@ export default function ProductDetail() {
                           <ShieldCheck className="h-3 w-3 mr-1" /> Verified Student
                        </div>
                      )}
-                     <span className="text-xs text-muted-foreground">
-                       {seller.followers.length} followers
-                     </span>
                    </div>
                 </div>
              </div>
              <Button 
                variant={isFollowing ? "outline" : "default"} 
                size="sm"
-               onClick={() => followUser(seller.id)}
+               onClick={handleFollow}
+               disabled={followUserMutation.isPending || unfollowUserMutation.isPending}
+               data-testid="button-follow"
              >
+               {followUserMutation.isPending || unfollowUserMutation.isPending ? (
+                 <Loader2 className="h-3 w-3 animate-spin mr-2" />
+               ) : null}
                {isFollowing ? "Unfollow" : "Follow"}
              </Button>
           </div>

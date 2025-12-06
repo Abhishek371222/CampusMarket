@@ -1,4 +1,3 @@
-import { useMarketStore } from "@/lib/mockData";
 import { ProductCard } from "@/components/ui/product-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,10 +8,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { SearchBar } from "@/components/ui/search-bar";
 import { useState, useMemo } from "react";
 import { useLocation } from "wouter";
+import { useProducts } from "@/lib/api-hooks";
+import { Loader2 } from "lucide-react";
 
 export default function Marketplace() {
   const [location] = useLocation();
-  const products = useMarketStore((state) => state.products);
   
   // Parse query params (simple implementation)
   const queryParams = new URLSearchParams(window.location.search);
@@ -26,23 +26,34 @@ export default function Marketplace() {
   const categories = ["All", "Textbooks", "Electronics", "Furniture", "Clothing", "Other"];
   const allConditions = ["New", "Like New", "Good", "Fair"];
 
+  const { data: products = [], isLoading, error } = useProducts({
+    search: initialSearch,
+    category: category !== "All" ? category : undefined,
+  });
+
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
-      const matchesCategory = category === "All" || p.category === category;
-      const matchesSearch = p.title.toLowerCase().includes(initialSearch.toLowerCase()) || 
-                            p.description.toLowerCase().includes(initialSearch.toLowerCase());
-      const matchesPrice = p.price >= priceRange[0] && p.price <= priceRange[1];
+      const price = parseFloat(p.price);
+      const matchesPrice = price >= priceRange[0] && price <= priceRange[1];
       const matchesCondition = conditions.length === 0 || conditions.includes(p.condition);
       
-      return matchesCategory && matchesSearch && matchesPrice && matchesCondition;
+      return matchesPrice && matchesCondition;
     });
-  }, [products, category, initialSearch, priceRange, conditions]);
+  }, [products, priceRange, conditions]);
 
   const toggleCondition = (cond: string) => {
     setConditions(prev => 
       prev.includes(cond) ? prev.filter(c => c !== cond) : [...prev, cond]
     );
   };
+
+  if (error) {
+    return (
+      <div className="container px-4 py-16 text-center">
+        <p className="text-lg text-destructive">Failed to load products. Please try again.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="container px-4 md:px-6 py-8">
@@ -59,6 +70,7 @@ export default function Marketplace() {
                   variant={category === cat ? "secondary" : "ghost"}
                   className="w-full justify-start font-normal"
                   onClick={() => setCategory(cat)}
+                  data-testid={`button-category-${cat.toLowerCase()}`}
                 >
                   {cat}
                 </Button>
@@ -77,10 +89,11 @@ export default function Marketplace() {
               value={priceRange}
               onValueChange={setPriceRange}
               className="mb-4"
+              data-testid="slider-price-range"
             />
             <div className="flex items-center justify-between text-sm text-muted-foreground">
-              <span>${priceRange[0]}</span>
-              <span>${priceRange[1]}+</span>
+              <span data-testid="text-price-min">${priceRange[0]}</span>
+              <span data-testid="text-price-max">${priceRange[1]}+</span>
             </div>
           </div>
 
@@ -95,6 +108,7 @@ export default function Marketplace() {
                     id={cond} 
                     checked={conditions.includes(cond)}
                     onCheckedChange={() => toggleCondition(cond)}
+                    data-testid={`checkbox-condition-${cond.toLowerCase().replace(/\s/g, '-')}`}
                   />
                   <Label htmlFor={cond} className="text-sm font-normal cursor-pointer">
                     {cond}
@@ -112,12 +126,16 @@ export default function Marketplace() {
               {category === "All" ? "All Listings" : category}
             </h1>
             <SearchBar initialValue={initialSearch} className="max-w-xl" />
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground" data-testid="text-results-count">
               Showing {filteredProducts.length} results
             </p>
           </div>
 
-          {filteredProducts.length > 0 ? (
+          {isLoading ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : filteredProducts.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredProducts.map((product) => (
                 <ProductCard key={product.id} product={product} />
@@ -127,11 +145,17 @@ export default function Marketplace() {
             <div className="flex flex-col items-center justify-center py-20 text-center border-2 border-dashed rounded-xl">
               <p className="text-lg font-medium mb-2">No items found</p>
               <p className="text-muted-foreground mb-6">Try adjusting your filters or search terms.</p>
-              <Button variant="outline" onClick={() => {
-                setCategory("All");
-                setConditions([]);
-                setPriceRange([0, 500]);
-              }}>Clear Filters</Button>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setCategory("All");
+                  setConditions([]);
+                  setPriceRange([0, 500]);
+                }}
+                data-testid="button-clear-filters"
+              >
+                Clear Filters
+              </Button>
             </div>
           )}
         </div>
