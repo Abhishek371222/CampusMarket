@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useLocation } from "wouter";
 import { useState, useEffect, useRef } from "react";
-import { Send } from "lucide-react";
+import { Send, Mail } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 export default function Messages() {
