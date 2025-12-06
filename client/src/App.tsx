@@ -14,6 +14,8 @@ import Sell from "@/pages/Sell";
 import Profile from "@/pages/Profile";
 import Messages from "@/pages/Messages";
 import Login from "@/pages/Login";
+import Community from "@/pages/Community";
+import AdminDashboard from "@/pages/Admin";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -29,6 +31,8 @@ function Router() {
           <Route path="/profile" component={Profile} />
           <Route path="/messages" component={Messages} />
           <Route path="/login" component={Login} />
+          <Route path="/community" component={Community} />
+          <Route path="/admin" component={AdminDashboard} />
           <Route component={NotFound} />
         </Switch>
       </main>

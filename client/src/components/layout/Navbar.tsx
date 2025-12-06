@@ -10,9 +10,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Search, ShoppingBag, PlusCircle, MessageCircle, LogOut, Menu, User } from "lucide-react";
+import { Search, ShoppingBag, PlusCircle, MessageCircle, LogOut, Menu, User, Users, Shield } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useState } from "react";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { NotificationBell } from "@/components/ui/notification-bell";
 
 export function Navbar() {
   const { user, logout } = useAuth();
@@ -26,16 +28,18 @@ export function Navbar() {
           Marketplace
         </span>
       </Link>
-      <Link href="/market?category=Textbooks">
-        <span className="text-sm font-medium transition-colors hover:text-primary cursor-pointer text-muted-foreground">
-          Textbooks
+      <Link href="/community">
+        <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location === "/community" ? "text-primary" : "text-muted-foreground"}`}>
+          Community
         </span>
       </Link>
-      <Link href="/market?category=Electronics">
-        <span className="text-sm font-medium transition-colors hover:text-primary cursor-pointer text-muted-foreground">
-          Electronics
-        </span>
-      </Link>
+      {user?.role === "admin" && (
+        <Link href="/admin">
+          <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location === "/admin" ? "text-primary" : "text-muted-foreground"}`}>
+            Admin
+          </span>
+        </Link>
+      )}
     </>
   );
 
@@ -58,26 +62,28 @@ export function Navbar() {
           </nav>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
           <Link href="/market">
             <Button variant="ghost" size="icon" className="md:hidden">
               <Search className="h-5 w-5" />
             </Button>
           </Link>
 
+          <ThemeToggle />
+          <NotificationBell />
+
           {user ? (
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 ml-2">
               <Link href="/sell">
                 <Button size="sm" className="hidden md:flex gap-2">
                   <PlusCircle className="h-4 w-4" />
-                  Sell Item
+                  Sell
                 </Button>
               </Link>
               
               <Link href="/messages">
                 <Button variant="ghost" size="icon" className="relative">
                   <MessageCircle className="h-5 w-5" />
-                  <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-background" />
                 </Button>
               </Link>
 
@@ -107,11 +113,19 @@ export function Navbar() {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link href="/sell" className="cursor-pointer md:hidden flex w-full items-center">
-                      <PlusCircle className="mr-2 h-4 w-4" />
-                      Sell Item
+                    <Link href="/community" className="cursor-pointer flex w-full items-center">
+                      <Users className="mr-2 h-4 w-4" />
+                      Community Wall
                     </Link>
                   </DropdownMenuItem>
+                  {user.role === "admin" && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/admin" className="cursor-pointer flex w-full items-center">
+                        <Shield className="mr-2 h-4 w-4" />
+                        Admin Dashboard
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => logout()} className="cursor-pointer text-red-600 focus:text-red-600">
                     <LogOut className="mr-2 h-4 w-4" />
@@ -121,7 +135,7 @@ export function Navbar() {
               </DropdownMenu>
             </div>
           ) : (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 ml-2">
               <Link href="/login">
                 <Button variant="ghost" size="sm">Log in</Button>
               </Link>

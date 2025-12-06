@@ -10,7 +10,7 @@ import { useAuth } from "@/lib/auth";
 import { useMarketStore } from "@/lib/mockData";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, X } from "lucide-react";
+import { Upload, X, Wand2, Sparkles, Loader2 } from "lucide-react";
 import { useState } from "react";
 
 const formSchema = z.object({
@@ -27,8 +27,8 @@ export default function Sell() {
   const { addProduct } = useMarketStore();
   const { toast } = useToast();
   const [images, setImages] = useState<string[]>([]);
+  const [isAiLoading, setIsAiLoading] = useState(false);
 
-  // Redirect if not logged in
   if (!user) {
      setLocation("/login");
      return null;
@@ -47,7 +47,7 @@ export default function Sell() {
     if (images.length === 0) {
       toast({
         title: "Image required",
-        description: "Please upload at least one image of your item.",
+        description: "Please upload at least one image.",
         variant: "destructive",
       });
       return;
@@ -60,15 +60,13 @@ export default function Sell() {
 
     toast({
       title: "Item Listed!",
-      description: "Your product is now available on the marketplace.",
+      description: "Your product is now live.",
     });
 
     setLocation("/profile");
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Mock image upload by creating a local object URL
-    // In a real app, this would upload to Cloudinary
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       const imageUrl = URL.createObjectURL(file);
@@ -78,6 +76,22 @@ export default function Sell() {
 
   const removeImage = (index: number) => {
     setImages(images.filter((_, i) => i !== index));
+  };
+
+  const simulateAiGeneration = () => {
+    setIsAiLoading(true);
+    setTimeout(() => {
+      form.setValue("title", "Calculus: Early Transcendentals (8th Edition)");
+      form.setValue("description", "James Stewart's Calculus text is widely renowned for its mathematical precision and accuracy, clarity of exposition, and outstanding examples and problem sets.");
+      form.setValue("category", "Textbooks");
+      form.setValue("condition", "Good");
+      form.setValue("price", 45);
+      setIsAiLoading(false);
+      toast({
+        title: "AI Auto-Fill Complete",
+        description: "Listing details generated from image analysis.",
+      });
+    }, 1500);
   };
 
   return (
@@ -91,108 +105,14 @@ export default function Sell() {
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
           
           <div className="space-y-4">
-            <h3 className="font-heading font-semibold text-lg">Product Details</h3>
-            
-            <FormField
-              control={form.control}
-              name="title"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Title</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g. Calculus Early Transcendentals (8th Ed)" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="category"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Category</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select category" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="Textbooks">Textbooks</SelectItem>
-                        <SelectItem value="Electronics">Electronics</SelectItem>
-                        <SelectItem value="Furniture">Furniture</SelectItem>
-                        <SelectItem value="Clothing">Clothing</SelectItem>
-                        <SelectItem value="Other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="price"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Price ($)</FormLabel>
-                    <FormControl>
-                      <Input type="number" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <div className="flex items-center justify-between">
+              <h3 className="font-heading font-semibold text-lg">Photos</h3>
+              <Button type="button" variant="outline" size="sm" onClick={simulateAiGeneration} disabled={images.length === 0 || isAiLoading}>
+                {isAiLoading ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Sparkles className="mr-2 h-3 w-3 text-purple-500" />}
+                AI Auto-Fill
+              </Button>
             </div>
-
-            <FormField
-              control={form.control}
-              name="condition"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Condition</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select condition" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="New">New (Unopened)</SelectItem>
-                      <SelectItem value="Like New">Like New (Barely used)</SelectItem>
-                      <SelectItem value="Good">Good (Minor wear)</SelectItem>
-                      <SelectItem value="Fair">Fair (Visible wear)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description</FormLabel>
-                  <FormControl>
-                    <Textarea 
-                      placeholder="Describe the item condition, why you're selling it, etc." 
-                      className="min-h-[120px]"
-                      {...field} 
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          <div className="space-y-4">
-            <h3 className="font-heading font-semibold text-lg">Photos</h3>
+            
             <div className="grid grid-cols-3 gap-4">
               {images.map((img, index) => (
                 <div key={index} className="relative aspect-square rounded-lg overflow-hidden border group">
@@ -214,6 +134,115 @@ export default function Sell() {
                 </label>
               )}
             </div>
+            <p className="text-xs text-muted-foreground">Upload a photo to enable AI auto-fill for title and price.</p>
+          </div>
+
+          <div className="space-y-4">
+            <h3 className="font-heading font-semibold text-lg">Details</h3>
+            
+            <FormField
+              control={form.control}
+              name="title"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Title</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g. Calculus Early Transcendentals" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="category"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Category</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="Textbooks">Textbooks</SelectItem>
+                        <SelectItem value="Electronics">Electronics</SelectItem>
+                        <SelectItem value="Furniture">Furniture</SelectItem>
+                        <SelectItem value="Clothing">Clothing</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="price"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Price ($)</FormLabel>
+                    <div className="relative">
+                      <FormControl>
+                        <Input type="number" {...field} />
+                      </FormControl>
+                      {field.value > 0 && (
+                        <div className="absolute right-3 top-2.5">
+                          <Wand2 className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                      )}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <FormField
+              control={form.control}
+              name="condition"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Condition</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="New">New</SelectItem>
+                      <SelectItem value="Like New">Like New</SelectItem>
+                      <SelectItem value="Good">Good</SelectItem>
+                      <SelectItem value="Fair">Fair</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Description</FormLabel>
+                  <FormControl>
+                    <Textarea 
+                      placeholder="Describe the item..." 
+                      className="min-h-[120px]"
+                      {...field} 
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </div>
 
           <Button type="submit" size="lg" className="w-full">List Item</Button>
