@@ -603,5 +603,158 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/users/:id", async (req, res) => {
+    try {
+      const user = await storage.getUser(req.params.id);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const { password: _, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      console.error("Get user profile error:", error);
+      res.status(500).json({ message: "Failed to get user profile" });
+    }
+  });
+
+  app.post("/api/users/:id/follow", requireAuth, async (req, res) => {
+    try {
+      const targetUserId = req.params.id;
+      const currentUserId = req.session.userId!;
+
+      if (targetUserId === currentUserId) {
+        return res.status(400).json({ message: "Cannot follow yourself" });
+      }
+
+      const targetUser = await storage.getUser(targetUserId);
+      if (!targetUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const isAlreadyFollowing = await storage.isFollowing(currentUserId, targetUserId);
+      if (isAlreadyFollowing) {
+        return res.status(400).json({ message: "Already following this user" });
+      }
+
+      await storage.followUser(currentUserId, targetUserId);
+      res.status(201).json({ message: "Successfully followed user" });
+    } catch (error) {
+      console.error("Follow user error:", error);
+      res.status(500).json({ message: "Failed to follow user" });
+    }
+  });
+
+  app.delete("/api/users/:id/follow", requireAuth, async (req, res) => {
+    try {
+      const targetUserId = req.params.id;
+      const currentUserId = req.session.userId!;
+
+      const targetUser = await storage.getUser(targetUserId);
+      if (!targetUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const isFollowing = await storage.isFollowing(currentUserId, targetUserId);
+      if (!isFollowing) {
+        return res.status(400).json({ message: "Not following this user" });
+      }
+
+      await storage.unfollowUser(currentUserId, targetUserId);
+      res.json({ message: "Successfully unfollowed user" });
+    } catch (error) {
+      console.error("Unfollow user error:", error);
+      res.status(500).json({ message: "Failed to unfollow user" });
+    }
+  });
+
+  app.get("/api/users/:id/followers", async (req, res) => {
+    try {
+      const user = await storage.getUser(req.params.id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const followerIds = await storage.getFollowers(req.params.id);
+      const followers = await Promise.all(
+        followerIds.map(async (id) => {
+          const follower = await storage.getUser(id);
+          if (follower) {
+            const { password: _, ...userWithoutPassword } = follower;
+            return userWithoutPassword;
+          }
+          return null;
+        })
+      );
+
+      res.json(followers.filter(Boolean));
+    } catch (error) {
+      console.error("Get followers error:", error);
+      res.status(500).json({ message: "Failed to get followers" });
+    }
+  });
+
+  app.get("/api/users/:id/following", async (req, res) => {
+    try {
+      const user = await storage.getUser(req.params.id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const followingIds = await storage.getFollowing(req.params.id);
+      const following = await Promise.all(
+        followingIds.map(async (id) => {
+          const user = await storage.getUser(id);
+          if (user) {
+            const { password: _, ...userWithoutPassword } = user;
+            return userWithoutPassword;
+          }
+          return null;
+        })
+      );
+
+      res.json(following.filter(Boolean));
+    } catch (error) {
+      console.error("Get following error:", error);
+      res.status(500).json({ message: "Failed to get following" });
+    }
+  });
+
+  app.patch("/api/users/:id/verify", requireAuth, async (req, res) => {
+    try {
+      const currentUser = await storage.getUser(req.session.userId!);
+      if (!currentUser || currentUser.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const targetUser = await storage.getUser(req.params.id);
+      if (!targetUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const { verificationStatus } = req.body;
+      if (!verificationStatus || !["verified", "unverified", "pending"].includes(verificationStatus)) {
+        return res.status(400).json({ message: "Invalid verification status" });
+      }
+
+      const isVerified = verificationStatus === "verified";
+      const updatedUser = await storage.updateUser(req.params.id, {
+        verificationStatus,
+        isVerified,
+      });
+
+      if (updatedUser) {
+        const { password: _, ...userWithoutPassword } = updatedUser;
+        res.json(userWithoutPassword);
+      } else {
+        res.status(500).json({ message: "Failed to update user" });
+      }
+    } catch (error) {
+      console.error("Update verification status error:", error);
+      res.status(500).json({ message: "Failed to update verification status" });
+    }
+  });
+
   return httpServer;
 }
