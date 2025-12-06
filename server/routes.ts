@@ -4,7 +4,7 @@ import session from "express-session";
 import MemoryStore from "memorystore";
 import bcrypt from "bcryptjs";
 import { storage } from "./storage";
-import { insertUserSchema, insertProductSchema, type User } from "@shared/schema";
+import { insertUserSchema, insertProductSchema, insertMessageSchema, type User } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
 
 declare module "express-session" {
@@ -269,6 +269,130 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Increment view error:", error);
       res.status(500).json({ message: "Failed to increment view count" });
+    }
+  });
+
+  app.post("/api/chats", requireAuth, async (req, res) => {
+    try {
+      const { productId, participantIds } = req.body;
+
+      if (!participantIds || !Array.isArray(participantIds) || participantIds.length === 0) {
+        return res.status(400).json({ message: "participantIds array is required" });
+      }
+
+      if (!participantIds.includes(req.session.userId!)) {
+        participantIds.push(req.session.userId!);
+      }
+
+      const chat = await storage.createChat(productId || null, participantIds);
+      res.status(201).json(chat);
+    } catch (error) {
+      console.error("Create chat error:", error);
+      res.status(500).json({ message: "Failed to create chat" });
+    }
+  });
+
+  app.get("/api/chats", requireAuth, async (req, res) => {
+    try {
+      const chats = await storage.getChatsByUser(req.session.userId!);
+      res.json(chats);
+    } catch (error) {
+      console.error("Get chats error:", error);
+      res.status(500).json({ message: "Failed to get chats" });
+    }
+  });
+
+  app.get("/api/chats/:id", requireAuth, async (req, res) => {
+    try {
+      const chat = await storage.getChat(req.params.id);
+      
+      if (!chat) {
+        return res.status(404).json({ message: "Chat not found" });
+      }
+
+      const participants = await storage.getChatParticipants(req.params.id);
+      const participantIds = participants.map(p => p.userId);
+
+      if (!participantIds.includes(req.session.userId!)) {
+        return res.status(403).json({ message: "Not authorized to view this chat" });
+      }
+
+      res.json({ ...chat, participants });
+    } catch (error) {
+      console.error("Get chat error:", error);
+      res.status(500).json({ message: "Failed to get chat" });
+    }
+  });
+
+  app.post("/api/chats/:id/messages", requireAuth, async (req, res) => {
+    try {
+      const chat = await storage.getChat(req.params.id);
+      
+      if (!chat) {
+        return res.status(404).json({ message: "Chat not found" });
+      }
+
+      const participants = await storage.getChatParticipants(req.params.id);
+      const participantIds = participants.map(p => p.userId);
+
+      if (!participantIds.includes(req.session.userId!)) {
+        return res.status(403).json({ message: "Not authorized to send messages in this chat" });
+      }
+
+      const validationResult = insertMessageSchema.safeParse(req.body);
+      
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: fromZodError(validationResult.error).message 
+        });
+      }
+
+      if (validationResult.data.chatId !== req.params.id) {
+        return res.status(400).json({ message: "Chat ID mismatch" });
+      }
+
+      const message = await storage.createMessage({
+        ...validationResult.data,
+        senderId: req.session.userId!,
+      });
+
+      res.status(201).json(message);
+    } catch (error) {
+      console.error("Send message error:", error);
+      res.status(500).json({ message: "Failed to send message" });
+    }
+  });
+
+  app.get("/api/chats/:id/messages", requireAuth, async (req, res) => {
+    try {
+      const chat = await storage.getChat(req.params.id);
+      
+      if (!chat) {
+        return res.status(404).json({ message: "Chat not found" });
+      }
+
+      const participants = await storage.getChatParticipants(req.params.id);
+      const participantIds = participants.map(p => p.userId);
+
+      if (!participantIds.includes(req.session.userId!)) {
+        return res.status(403).json({ message: "Not authorized to view messages in this chat" });
+      }
+
+      const messages = await storage.getMessagesByChat(req.params.id);
+      res.json(messages);
+    } catch (error) {
+      console.error("Get messages error:", error);
+      res.status(500).json({ message: "Failed to get messages" });
+    }
+  });
+
+  app.patch("/api/messages/:id/read", requireAuth, async (req, res) => {
+    try {
+      await storage.markMessageAsRead(req.params.id);
+      res.json({ message: "Message marked as read" });
+    } catch (error) {
+      console.error("Mark message as read error:", error);
+      res.status(500).json({ message: "Failed to mark message as read" });
     }
   });
 
