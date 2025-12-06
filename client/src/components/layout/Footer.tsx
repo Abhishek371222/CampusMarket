@@ -1,7 +1,8 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Facebook, Twitter, Instagram, Linkedin, Mail } from "lucide-react";
+import { Facebook, Twitter, Instagram, Linkedin, Mail, ExternalLink } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export function Footer() {
   return (
@@ -21,18 +22,41 @@ export function Footer() {
               The safest, student-verified marketplace for buying and selling textbooks, electronics, and dorm essentials right on campus.
             </p>
             <div className="flex gap-3 mt-2">
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hover:bg-primary/10 hover:text-primary">
-                <Twitter className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hover:bg-primary/10 hover:text-primary">
-                <Instagram className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hover:bg-primary/10 hover:text-primary">
-                <Facebook className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hover:bg-primary/10 hover:text-primary">
-                <Linkedin className="h-4 w-4" />
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hover:bg-primary/10 hover:text-primary" aria-label="Twitter">
+                    <Twitter className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Follow us on Twitter</TooltipContent>
+              </Tooltip>
+              
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hover:bg-primary/10 hover:text-primary" aria-label="Instagram">
+                    <Instagram className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Follow us on Instagram</TooltipContent>
+              </Tooltip>
+              
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hover:bg-primary/10 hover:text-primary" aria-label="Facebook">
+                    <Facebook className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Like us on Facebook</TooltipContent>
+              </Tooltip>
+              
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hover:bg-primary/10 hover:text-primary" aria-label="LinkedIn">
+                    <Linkedin className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Connect on LinkedIn</TooltipContent>
+              </Tooltip>
             </div>
           </div>
 
@@ -41,19 +65,44 @@ export function Footer() {
             <h3 className="text-sm font-bold uppercase tracking-wider text-foreground">Marketplace</h3>
             <div className="flex flex-col gap-2">
               <Link href="/market?category=Textbooks">
-                <span className="text-sm text-muted-foreground hover:text-primary transition-colors cursor-pointer">Textbooks & Course Materials</span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="text-sm text-muted-foreground hover:text-primary transition-colors cursor-pointer flex items-center gap-1">
+                      Textbooks & Course Materials
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">Find cheap books</TooltipContent>
+                </Tooltip>
               </Link>
               <Link href="/market?category=Electronics">
-                <span className="text-sm text-muted-foreground hover:text-primary transition-colors cursor-pointer">Electronics & Gadgets</span>
+                 <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="text-sm text-muted-foreground hover:text-primary transition-colors cursor-pointer">
+                      Electronics & Gadgets
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">Laptops, headphones, etc.</TooltipContent>
+                </Tooltip>
               </Link>
               <Link href="/market?category=Furniture">
-                <span className="text-sm text-muted-foreground hover:text-primary transition-colors cursor-pointer">Dorm Furniture</span>
+                 <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="text-sm text-muted-foreground hover:text-primary transition-colors cursor-pointer">
+                      Dorm Furniture
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">Desks, chairs, decor</TooltipContent>
+                </Tooltip>
               </Link>
               <Link href="/market?category=Clothing">
-                <span className="text-sm text-muted-foreground hover:text-primary transition-colors cursor-pointer">Clothing & Merch</span>
+                <span className="text-sm text-muted-foreground hover:text-primary transition-colors cursor-pointer">
+                  Clothing & Merch
+                </span>
               </Link>
               <Link href="/market">
-                <span className="text-sm text-muted-foreground hover:text-primary transition-colors cursor-pointer">View All Categories</span>
+                <span className="text-sm text-muted-foreground hover:text-primary transition-colors cursor-pointer font-medium text-primary">
+                  View All Categories →
+                </span>
               </Link>
             </div>
           </div>
@@ -62,7 +111,9 @@ export function Footer() {
           <div className="flex flex-col gap-4">
             <h3 className="text-sm font-bold uppercase tracking-wider text-foreground">Support & Safety</h3>
             <div className="flex flex-col gap-2">
-              <span className="text-sm text-muted-foreground hover:text-primary transition-colors cursor-pointer">Safety Guidelines</span>
+              <span className="text-sm text-muted-foreground hover:text-primary transition-colors cursor-pointer flex items-center gap-1">
+                Safety Guidelines <ExternalLink className="h-3 w-3 opacity-50" />
+              </span>
               <span className="text-sm text-muted-foreground hover:text-primary transition-colors cursor-pointer">Verification Process</span>
               <span className="text-sm text-muted-foreground hover:text-primary transition-colors cursor-pointer">Report a Scam</span>
               <span className="text-sm text-muted-foreground hover:text-primary transition-colors cursor-pointer">Community Rules</span>
@@ -77,10 +128,19 @@ export function Footer() {
               Subscribe to get alerts for new listings in your major.
             </p>
             <div className="flex gap-2">
-              <Input placeholder="student@university.edu" className="h-9 bg-background border-muted-foreground/20" />
-              <Button size="sm" className="h-9 px-4">
-                <Mail className="h-4 w-4" />
-              </Button>
+              <Input 
+                placeholder="student@university.edu" 
+                className="h-9 bg-background border-muted-foreground/20" 
+                aria-label="Email Address"
+              />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button size="sm" className="h-9 px-4" aria-label="Subscribe">
+                    <Mail className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Subscribe to newsletter</TooltipContent>
+              </Tooltip>
             </div>
             <p className="text-xs text-muted-foreground mt-2">
               We only send relevant campus updates. No spam.

@@ -10,8 +10,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Search, ShoppingBag, PlusCircle, MessageCircle, LogOut, Menu, User, Users, Shield, Bell } from "lucide-react";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Search, ShoppingBag, PlusCircle, MessageCircle, LogOut, Menu, User, Users, Shield, Bell, Settings } from "lucide-react";
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { useState } from "react";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { NotificationBell } from "@/components/ui/notification-bell";
@@ -25,14 +25,24 @@ export function Navbar() {
   const NavLinks = () => (
     <>
       <Link href="/market">
-        <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location.startsWith("/market") ? "text-primary" : "text-muted-foreground"}`}>
-          Marketplace
-        </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location.startsWith("/market") ? "text-primary" : "text-muted-foreground"}`}>
+              Marketplace
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>Browse textbooks, electronics & more</TooltipContent>
+        </Tooltip>
       </Link>
       <Link href="/community">
-        <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location.startsWith("/community") ? "text-primary" : "text-muted-foreground"}`}>
-          Community
-        </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location.startsWith("/community") ? "text-primary" : "text-muted-foreground"}`}>
+              Community
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>Campus news, lost & found, requests</TooltipContent>
+        </Tooltip>
       </Link>
       {user?.role === "admin" && (
         <Link href="/admin">
@@ -49,14 +59,19 @@ export function Navbar() {
       <div className="container flex h-16 items-center justify-between px-4 md:px-6">
         <div className="flex items-center gap-6">
           <Link href="/">
-            <div className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <ShoppingBag className="h-5 w-5" />
-              </div>
-              <span className="hidden font-heading text-lg font-bold md:inline-block">
-                CampusMarket
-              </span>
-            </div>
+             <Tooltip>
+               <TooltipTrigger asChild>
+                <div className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                    <ShoppingBag className="h-5 w-5" />
+                  </div>
+                  <span className="hidden font-heading text-lg font-bold md:inline-block">
+                    CampusMarket
+                  </span>
+                </div>
+               </TooltipTrigger>
+               <TooltipContent>Go to Homepage</TooltipContent>
+             </Tooltip>
           </Link>
           <nav className="hidden md:flex items-center gap-6">
             <NavLinks />
@@ -65,9 +80,14 @@ export function Navbar() {
 
         <div className="flex items-center gap-2">
           <Link href="/market">
-            <Button variant="ghost" size="icon" className="md:hidden" aria-label="Search">
-              <Search className="h-5 w-5" />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="md:hidden" aria-label="Search Marketplace">
+                  <Search className="h-5 w-5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Search Marketplace</TooltipContent>
+            </Tooltip>
           </Link>
 
           <div className="flex items-center gap-1">
@@ -75,46 +95,57 @@ export function Navbar() {
               <TooltipTrigger asChild>
                 <div><ThemeToggle /></div>
               </TooltipTrigger>
-              <TooltipContent>Toggle Theme</TooltipContent>
+              <TooltipContent>Toggle Dark/Light Mode</TooltipContent>
             </Tooltip>
             
             <Tooltip>
               <TooltipTrigger asChild>
                 <div><NotificationBell /></div>
               </TooltipTrigger>
-              <TooltipContent>Notifications</TooltipContent>
+              <TooltipContent>View Notifications</TooltipContent>
             </Tooltip>
           </div>
 
           {user ? (
             <div className="flex items-center gap-2 ml-2">
               <Link href="/sell">
-                <Button size="sm" className="hidden md:flex gap-2 shadow-sm hover:shadow-md transition-all">
-                  <PlusCircle className="h-4 w-4" />
-                  Sell Item
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button size="sm" className="hidden md:flex gap-2 shadow-sm hover:shadow-md transition-all" aria-label="Sell an Item">
+                      <PlusCircle className="h-4 w-4" />
+                      Sell Item
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>List a new product for sale</TooltipContent>
+                </Tooltip>
               </Link>
               
               <Link href="/messages">
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="relative">
+                    <Button variant="ghost" size="icon" className="relative" aria-label="Messages">
                       <MessageCircle className="h-5 w-5" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Messages</TooltipContent>
+                  <TooltipContent>View Messages</TooltipContent>
                 </Tooltip>
               </Link>
 
               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-8 w-8 rounded-full ring-2 ring-transparent hover:ring-primary/20 transition-all">
-                    <Avatar className="h-8 w-8 border">
-                      <AvatarImage src={user.avatar} alt={user.name} />
-                      <AvatarFallback>{user.name[0]}</AvatarFallback>
-                    </Avatar>
-                  </Button>
-                </DropdownMenuTrigger>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" className="relative h-8 w-8 rounded-full ring-2 ring-transparent hover:ring-primary/20 transition-all" aria-label="User Menu">
+                        <Avatar className="h-8 w-8 border">
+                          <AvatarImage src={user.avatar} alt={user.name} />
+                          <AvatarFallback>{user.name[0]}</AvatarFallback>
+                        </Avatar>
+                      </Button>
+                    </DropdownMenuTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent>Account Settings</TooltipContent>
+                </Tooltip>
+                
                 <DropdownMenuContent className="w-56" align="end" forceMount>
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
@@ -162,10 +193,20 @@ export function Navbar() {
           ) : (
             <div className="flex items-center gap-2 ml-2">
               <Link href="/login">
-                <Button variant="ghost" size="sm">Log in</Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="sm" aria-label="Log In">Log in</Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Access your account</TooltipContent>
+                </Tooltip>
               </Link>
               <Link href="/signup">
-                <Button size="sm" className="shadow-sm">Sign up</Button>
+                 <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button size="sm" className="shadow-sm" aria-label="Sign Up">Sign up</Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Create a new student account</TooltipContent>
+                </Tooltip>
               </Link>
             </div>
           )}
@@ -173,14 +214,20 @@ export function Navbar() {
           {/* Mobile Menu */}
           <Sheet open={isOpen} onOpenChange={setIsOpen}>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="md:hidden">
+              <Button variant="ghost" size="icon" className="md:hidden" aria-label="Open Menu">
                 <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
             <SheetContent side="left">
+              <SheetHeader>
+                <SheetTitle>Menu</SheetTitle>
+                <SheetDescription>Navigate through CampusMarket</SheetDescription>
+              </SheetHeader>
               <div className="flex flex-col gap-4 py-4">
                 <Link href="/" onClick={() => setIsOpen(false)}>
-                  <span className="font-heading text-lg font-bold">CampusMarket</span>
+                  <span className="font-heading text-lg font-bold flex items-center gap-2">
+                    <ShoppingBag className="h-5 w-5" /> CampusMarket
+                  </span>
                 </Link>
                 <div className="flex flex-col gap-3 mt-4">
                   <NavLinks />
