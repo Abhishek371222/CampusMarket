@@ -285,6 +285,9 @@ interface MarketStore {
   addCommunityPost: (content: string, type: CommunityPost["type"]) => void;
   addNotification: (userId: string, type: Notification["type"], content: string) => void;
   markNotificationsRead: () => void;
+  
+  // Simulators
+  receiveMockMessage: (chatId: string, content: string, senderId: string) => void;
 }
 
 export const useMarketStore = create<MarketStore>()(
@@ -379,6 +382,44 @@ export const useMarketStore = create<MarketStore>()(
               ? { ...c, lastMessage: content, lastMessageTime: newMessage.timestamp }
               : c
           ),
+        }));
+
+        // Simulate reply after 2 seconds
+        setTimeout(() => {
+          const chat = get().chats.find(c => c.id === chatId);
+          if (!chat) return;
+          const otherUserId = chat.participants.find(id => id !== user.id);
+          if (!otherUserId) return;
+          
+          get().receiveMockMessage(chatId, "Hey! Thanks for the message. Yes, it's available.", otherUserId);
+        }, 2500);
+      },
+
+      receiveMockMessage: (chatId, content, senderId) => {
+         const newMessage: Message = {
+          id: `msg-${nanoid()}`,
+          chatId,
+          senderId: senderId,
+          content,
+          timestamp: new Date().toISOString(),
+        };
+
+        set((state) => ({
+          messages: [...state.messages, newMessage],
+          chats: state.chats.map((c) =>
+            c.id === chatId
+              ? { ...c, lastMessage: content, lastMessageTime: newMessage.timestamp }
+              : c
+          ),
+          notifications: [...state.notifications, {
+            id: nanoid(),
+            userId: state.currentUser?.id || "",
+            type: "message",
+            content: "New message received",
+            isRead: false,
+            createdAt: new Date().toISOString(),
+            link: `/messages?chat=${chatId}`
+          }]
         }));
       },
 
@@ -553,4 +594,3 @@ export const useMarketStore = create<MarketStore>()(
     }
   )
 );
-
