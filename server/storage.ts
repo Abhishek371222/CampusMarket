@@ -64,6 +64,7 @@ export interface IStorage {
   getOffer(id: string): Promise<Offer | undefined>;
   getOffersByProduct(productId: string): Promise<Offer[]>;
   getOffersByBuyer(buyerId: string): Promise<Offer[]>;
+  updateOffer(id: string, data: Partial<Offer>): Promise<Offer | undefined>;
   updateOfferStatus(id: string, status: string): Promise<Offer | undefined>;
 
   // Notification operations
@@ -77,6 +78,7 @@ export interface IStorage {
   getCommunityPost(id: string): Promise<CommunityPost | undefined>;
   getAllCommunityPosts(): Promise<CommunityPost[]>;
   updateCommunityPostLikes(id: string, likes: number): Promise<void>;
+  deleteCommunityPost(id: string): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -370,6 +372,14 @@ export class MemStorage implements IStorage {
     return Array.from(this.offers.values()).filter((o) => o.buyerId === buyerId);
   }
 
+  async updateOffer(id: string, data: Partial<Offer>): Promise<Offer | undefined> {
+    const offer = this.offers.get(id);
+    if (!offer) return undefined;
+    const updated = { ...offer, ...data };
+    this.offers.set(id, updated);
+    return updated;
+  }
+
   async updateOfferStatus(id: string, status: string): Promise<Offer | undefined> {
     const offer = this.offers.get(id);
     if (!offer) return undefined;
@@ -452,6 +462,10 @@ export class MemStorage implements IStorage {
       post.likes = likes;
       this.communityPosts.set(id, post);
     }
+  }
+
+  async deleteCommunityPost(id: string): Promise<void> {
+    this.communityPosts.delete(id);
   }
 }
 

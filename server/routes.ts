@@ -4,7 +4,7 @@ import session from "express-session";
 import MemoryStore from "memorystore";
 import bcrypt from "bcryptjs";
 import { storage } from "./storage";
-import { insertUserSchema, insertProductSchema, insertMessageSchema, insertOfferSchema, type User } from "@shared/schema";
+import { insertUserSchema, insertProductSchema, insertMessageSchema, insertOfferSchema, insertCommunityPostSchema, type User } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
 
 declare module "express-session" {
@@ -515,6 +515,91 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Reject offer error:", error);
       res.status(500).json({ message: "Failed to reject offer" });
+    }
+  });
+
+  app.post("/api/community", requireAuth, async (req, res) => {
+    try {
+      const validationResult = insertCommunityPostSchema.safeParse(req.body);
+      
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: fromZodError(validationResult.error).message 
+        });
+      }
+
+      const post = await storage.createCommunityPost({
+        ...validationResult.data,
+        authorId: req.session.userId!,
+      });
+
+      res.status(201).json(post);
+    } catch (error) {
+      console.error("Create community post error:", error);
+      res.status(500).json({ message: "Failed to create community post" });
+    }
+  });
+
+  app.get("/api/community", async (req, res) => {
+    try {
+      const posts = await storage.getAllCommunityPosts();
+      res.json(posts);
+    } catch (error) {
+      console.error("Get community posts error:", error);
+      res.status(500).json({ message: "Failed to get community posts" });
+    }
+  });
+
+  app.get("/api/community/:id", async (req, res) => {
+    try {
+      const post = await storage.getCommunityPost(req.params.id);
+      
+      if (!post) {
+        return res.status(404).json({ message: "Community post not found" });
+      }
+
+      res.json(post);
+    } catch (error) {
+      console.error("Get community post error:", error);
+      res.status(500).json({ message: "Failed to get community post" });
+    }
+  });
+
+  app.post("/api/community/:id/like", requireAuth, async (req, res) => {
+    try {
+      const post = await storage.getCommunityPost(req.params.id);
+      
+      if (!post) {
+        return res.status(404).json({ message: "Community post not found" });
+      }
+
+      const newLikes = post.likes + 1;
+      await storage.updateCommunityPostLikes(req.params.id, newLikes);
+
+      res.json({ likes: newLikes });
+    } catch (error) {
+      console.error("Like community post error:", error);
+      res.status(500).json({ message: "Failed to like community post" });
+    }
+  });
+
+  app.delete("/api/community/:id", requireAuth, async (req, res) => {
+    try {
+      const post = await storage.getCommunityPost(req.params.id);
+      
+      if (!post) {
+        return res.status(404).json({ message: "Community post not found" });
+      }
+
+      if (post.authorId !== req.session.userId) {
+        return res.status(403).json({ message: "Not authorized to delete this post" });
+      }
+
+      await storage.deleteCommunityPost(req.params.id);
+      res.json({ message: "Community post deleted successfully" });
+    } catch (error) {
+      console.error("Delete community post error:", error);
+      res.status(500).json({ message: "Failed to delete community post" });
     }
   });
 
