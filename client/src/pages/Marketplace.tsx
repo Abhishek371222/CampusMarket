@@ -9,9 +9,8 @@ import { SearchBar } from "@/components/ui/search-bar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useMemo } from "react";
 import { useLocation } from "wouter";
-import { useProducts, useInstitutions } from "@/lib/api-hooks";
+import { useProducts, useInstitutions, useLocations } from "@/lib/api-hooks";
 import { useAuth } from "@/lib/auth";
-import { useQuery } from "@tanstack/react-query";
 import { Loader2, MapPin, Building2 } from "lucide-react";
 import type { Location } from "@shared/schema";
 
@@ -32,9 +31,7 @@ export default function Marketplace() {
   const categories = ["All", "Textbooks", "Electronics", "Furniture", "Clothing", "Other"];
   const allConditions = ["New", "Like New", "Good", "Fair"];
 
-  const { data: locations = [] } = useQuery<Location[]>({
-    queryKey: ["/api/locations"],
-  });
+  const { data: locations = [] } = useLocations();
 
   const { data: institutions = [] } = useInstitutions(selectedLocationId || undefined);
 

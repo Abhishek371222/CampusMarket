@@ -45,6 +45,11 @@ export function useProducts(filters?: {
 export function useLocations() {
   return useQuery<{id: string; country: string; state: string; city: string; pincode: string}[]>({
     queryKey: ["/api/locations"],
+    queryFn: async () => {
+      const res = await fetch("/api/locations", { credentials: "include" });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
   });
 }
 
