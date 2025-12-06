@@ -7,7 +7,7 @@ type AuthContextType = {
   user: User | null | undefined;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  signup: (name: string, email: string, password: string) => Promise<void>;
+  signup: (name: string, email: string, password: string, location?: { country: string; state: string; city: string; pincode: string }) => Promise<void>;
   isLoading: boolean;
 };
 
@@ -40,8 +40,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   const signupMutation = useMutation({
-    mutationFn: async ({ name, email, password }: { name: string; email: string; password: string }) => {
-      const res = await apiRequest("POST", "/api/signup", { name, email, password });
+    mutationFn: async ({ name, email, password, country, state, city, pincode }: { name: string; email: string; password: string; country?: string; state?: string; city?: string; pincode?: string }) => {
+      const res = await apiRequest("POST", "/api/signup", { name, email, password, country, state, city, pincode });
       return await res.json();
     },
     onSuccess: () => {
@@ -63,8 +63,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await loginMutation.mutateAsync({ email, password });
   };
 
-  const signup = async (name: string, email: string, password: string) => {
-    await signupMutation.mutateAsync({ name, email, password });
+  const signup = async (name: string, email: string, password: string, location?: { country: string; state: string; city: string; pincode: string }) => {
+    await signupMutation.mutateAsync({ name, email, password, ...location });
   };
 
   const logout = async () => {

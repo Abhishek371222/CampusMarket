@@ -55,14 +55,19 @@ export default function SignUp() {
     setIsLoading(true);
     try {
       const fullName = `${values.firstName} ${values.lastName}`;
-      await signup(fullName, values.email, values.password);
+      await signup(fullName, values.email, values.password, {
+        country: values.country,
+        state: values.state,
+        city: values.city,
+        pincode: values.pincode,
+      });
       
       toast({
         title: "Account Created!",
-        description: "Welcome to Campus Market. Please complete your profile setup.",
+        description: "Welcome to Campus Market!",
       });
       
-      setLocation("/profile/setup");
+      setLocation("/");
     } catch (error: any) {
       toast({
         title: "Sign Up Failed",

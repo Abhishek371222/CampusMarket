@@ -20,6 +20,71 @@ export async function registerRoutes(
 ): Promise<Server> {
   await setupAuth(app);
 
+  app.post("/api/signup", async (req, res) => {
+    try {
+      const { name, email, password, country, state, city, pincode } = req.body;
+
+      if (!name || !email || !password) {
+        return res.status(400).json({ message: "Name, email, and password are required" });
+      }
+
+      if (!country || !state || !city || !pincode) {
+        return res.status(400).json({ message: "Location details (country, state, city, pincode) are required" });
+      }
+
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser) {
+        return res.status(400).json({ message: "Email already registered" });
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      let location = await storage.getLocationByDetails(country, state, city, pincode);
+      if (!location) {
+        location = await storage.createLocation({ country, state, city, pincode });
+      }
+
+      const user = await storage.createUser({
+        name,
+        email,
+        password: hashedPassword,
+        locationId: location.id,
+      });
+
+      const { password: _, ...userWithoutPassword } = user;
+      res.status(201).json(userWithoutPassword);
+    } catch (error) {
+      console.error("Signup error:", error);
+      res.status(500).json({ message: "Failed to create account" });
+    }
+  });
+
+  app.post("/api/login", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+
+      if (!email || !password) {
+        return res.status(400).json({ message: "Email and password are required" });
+      }
+
+      const user = await storage.getUserByEmail(email);
+      if (!user || !user.password) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+
+      const isValidPassword = await bcrypt.compare(password, user.password);
+      if (!isValidPassword) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+
+      const { password: _, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(500).json({ message: "Failed to login" });
+    }
+  });
+
   app.get("/api/auth/user", isAuthenticated, async (req: any, res) => {
     try {
       const replitUserId = req.user.claims.sub;
