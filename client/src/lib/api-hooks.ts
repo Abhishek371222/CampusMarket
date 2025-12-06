@@ -14,11 +14,19 @@ import type {
 } from "@shared/schema";
 
 // Products Hooks
-export function useProducts(filters?: { search?: string; category?: string; condition?: string }) {
+export function useProducts(filters?: { 
+  search?: string; 
+  category?: string; 
+  condition?: string;
+  locationId?: string;
+  institutionId?: string;
+}) {
   const params = new URLSearchParams();
   if (filters?.search) params.append("search", filters.search);
   if (filters?.category) params.append("category", filters.category);
   if (filters?.condition) params.append("condition", filters.condition);
+  if (filters?.locationId) params.append("locationId", filters.locationId);
+  if (filters?.institutionId) params.append("institutionId", filters.institutionId);
   
   const queryString = params.toString();
   const url = queryString ? `/api/products?${queryString}` : "/api/products";
@@ -29,6 +37,25 @@ export function useProducts(filters?: { search?: string; category?: string; cond
       const res = await fetch(url, { credentials: "include" });
       if (!res.ok) throw new Error(await res.text());
       return await res.json();
+    },
+  });
+}
+
+// Location and Institution Hooks
+export function useLocations() {
+  return useQuery<{id: string; country: string; state: string; city: string; pincode: string}[]>({
+    queryKey: ["/api/locations"],
+  });
+}
+
+export function useInstitutions(locationId?: string) {
+  const url = locationId ? `/api/institutions?locationId=${locationId}` : "/api/institutions";
+  return useQuery<{id: string; name: string; type: string; locationId: string | null}[]>({
+    queryKey: ["/api/institutions", { locationId }],
+    queryFn: async () => {
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
     },
   });
 }

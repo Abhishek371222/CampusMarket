@@ -721,6 +721,16 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/locations", async (req, res) => {
+    try {
+      const locations = await storage.getAllLocations();
+      res.json(locations);
+    } catch (error) {
+      console.error("Get locations error:", error);
+      res.status(500).json({ message: "Failed to get locations" });
+    }
+  });
+
   app.get("/api/locations/countries", async (req, res) => {
     try {
       const countries = await storage.getCountries();

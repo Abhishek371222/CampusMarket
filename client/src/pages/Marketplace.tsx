@@ -6,15 +6,19 @@ import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SearchBar } from "@/components/ui/search-bar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useMemo } from "react";
 import { useLocation } from "wouter";
-import { useProducts } from "@/lib/api-hooks";
-import { Loader2 } from "lucide-react";
+import { useProducts, useInstitutions } from "@/lib/api-hooks";
+import { useAuth } from "@/lib/auth";
+import { useQuery } from "@tanstack/react-query";
+import { Loader2, MapPin, Building2 } from "lucide-react";
+import type { Location } from "@shared/schema";
 
 export default function Marketplace() {
-  const [location] = useLocation();
+  const [routeLocation] = useLocation();
+  const { user } = useAuth();
   
-  // Parse query params (simple implementation)
   const queryParams = new URLSearchParams(window.location.search);
   const initialCategory = queryParams.get("category") || "All";
   const initialSearch = queryParams.get("q") || "";
@@ -22,14 +26,35 @@ export default function Marketplace() {
   const [category, setCategory] = useState(initialCategory);
   const [priceRange, setPriceRange] = useState([0, 500]);
   const [conditions, setConditions] = useState<string[]>([]);
+  const [selectedLocationId, setSelectedLocationId] = useState<string>("");
+  const [selectedInstitutionId, setSelectedInstitutionId] = useState<string>("");
   
   const categories = ["All", "Textbooks", "Electronics", "Furniture", "Clothing", "Other"];
   const allConditions = ["New", "Like New", "Good", "Fair"];
 
+  const { data: locations = [] } = useQuery<Location[]>({
+    queryKey: ["/api/locations"],
+  });
+
+  const { data: institutions = [] } = useInstitutions(selectedLocationId || undefined);
+
   const { data: products = [], isLoading, error } = useProducts({
     search: initialSearch,
     category: category !== "All" ? category : undefined,
+    locationId: selectedLocationId || undefined,
+    institutionId: selectedInstitutionId || undefined,
   });
+
+  const uniqueCities = useMemo(() => {
+    const cityMap = new Map<string, Location>();
+    locations.forEach(loc => {
+      const key = `${loc.city}-${loc.state}-${loc.country}`;
+      if (!cityMap.has(key)) {
+        cityMap.set(key, loc);
+      }
+    });
+    return Array.from(cityMap.values());
+  }, [locations]);
 
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
@@ -117,6 +142,57 @@ export default function Marketplace() {
               ))}
             </div>
           </div>
+
+          <Separator />
+
+          <div>
+            <h3 className="font-heading font-semibold mb-4 flex items-center gap-2">
+              <MapPin className="h-4 w-4" />
+              Location
+            </h3>
+            <Select
+              value={selectedLocationId}
+              onValueChange={(value) => {
+                setSelectedLocationId(value === "all" ? "" : value);
+                setSelectedInstitutionId("");
+              }}
+            >
+              <SelectTrigger data-testid="select-location-filter">
+                <SelectValue placeholder="All locations" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All locations</SelectItem>
+                {uniqueCities.map((loc) => (
+                  <SelectItem key={loc.id} value={loc.id}>
+                    {loc.city}, {loc.state}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <h3 className="font-heading font-semibold mb-4 flex items-center gap-2">
+              <Building2 className="h-4 w-4" />
+              Institution
+            </h3>
+            <Select
+              value={selectedInstitutionId}
+              onValueChange={(value) => setSelectedInstitutionId(value === "all" ? "" : value)}
+            >
+              <SelectTrigger data-testid="select-institution-filter">
+                <SelectValue placeholder="All institutions" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All institutions</SelectItem>
+                {institutions.map((inst) => (
+                  <SelectItem key={inst.id} value={inst.id}>
+                    {inst.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </aside>
 
         {/* Main Content */}
@@ -151,6 +227,8 @@ export default function Marketplace() {
                   setCategory("All");
                   setConditions([]);
                   setPriceRange([0, 500]);
+                  setSelectedLocationId("");
+                  setSelectedInstitutionId("");
                 }}
                 data-testid="button-clear-filters"
               >
