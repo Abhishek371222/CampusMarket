@@ -1,4 +1,4 @@
-import { eq, and, or, ilike, gte, lte, desc, inArray } from "drizzle-orm";
+import { eq, and, or, ilike, gte, lte, desc, inArray, sql } from "drizzle-orm";
 import { db } from "./db";
 import {
   users,
@@ -10,6 +10,9 @@ import {
   offers,
   notifications,
   communityPosts,
+  postComments,
+  postLikes,
+  uploads,
   locations,
   institutions,
   phoneVerifications,
@@ -29,6 +32,11 @@ import {
   type InsertNotification,
   type CommunityPost,
   type InsertCommunityPost,
+  type PostComment,
+  type InsertPostComment,
+  type PostLike,
+  type Upload,
+  type InsertUpload,
   type Follow,
   type Location,
   type InsertLocation,
@@ -106,6 +114,21 @@ export interface IStorage {
   getAllCommunityPosts(): Promise<CommunityPost[]>;
   updateCommunityPostLikes(id: string, likes: number): Promise<void>;
   deleteCommunityPost(id: string): Promise<void>;
+  updateCommunityPostCommentCount(id: string, count: number): Promise<void>;
+
+  createPostComment(comment: InsertPostComment & { authorId: string }): Promise<PostComment>;
+  getPostComments(postId: string): Promise<PostComment[]>;
+  deletePostComment(id: string): Promise<void>;
+
+  createPostLike(postId: string, userId: string): Promise<PostLike>;
+  getPostLike(postId: string, userId: string): Promise<PostLike | undefined>;
+  deletePostLike(postId: string, userId: string): Promise<void>;
+  getPostLikesCount(postId: string): Promise<number>;
+
+  createUpload(upload: InsertUpload): Promise<Upload>;
+  getUpload(id: string): Promise<Upload | undefined>;
+  getUploadsByUser(userId: string): Promise<Upload[]>;
+  deleteUpload(id: string): Promise<void>;
 
   createLocation(location: InsertLocation): Promise<Location>;
   getLocation(id: string): Promise<Location | undefined>;
@@ -437,6 +460,7 @@ export class DatabaseStorage implements IStorage {
       authorId: postData.authorId,
       content: postData.content,
       type: postData.type || "general",
+      attachments: postData.attachments || [],
     }).returning();
     return post;
   }
@@ -456,6 +480,72 @@ export class DatabaseStorage implements IStorage {
 
   async deleteCommunityPost(id: string): Promise<void> {
     await db.delete(communityPosts).where(eq(communityPosts.id, id));
+  }
+
+  async updateCommunityPostCommentCount(id: string, count: number): Promise<void> {
+    await db.update(communityPosts).set({ comments: count }).where(eq(communityPosts.id, id));
+  }
+
+  async createPostComment(commentData: InsertPostComment & { authorId: string }): Promise<PostComment> {
+    const [comment] = await db.insert(postComments).values({
+      postId: commentData.postId,
+      authorId: commentData.authorId,
+      content: commentData.content,
+    }).returning();
+    return comment;
+  }
+
+  async getPostComments(postId: string): Promise<PostComment[]> {
+    return db.select().from(postComments)
+      .where(eq(postComments.postId, postId))
+      .orderBy(postComments.createdAt);
+  }
+
+  async deletePostComment(id: string): Promise<void> {
+    await db.delete(postComments).where(eq(postComments.id, id));
+  }
+
+  async createPostLike(postId: string, userId: string): Promise<PostLike> {
+    const [like] = await db.insert(postLikes).values({ postId, userId }).returning();
+    return like;
+  }
+
+  async getPostLike(postId: string, userId: string): Promise<PostLike | undefined> {
+    const [like] = await db.select().from(postLikes).where(
+      and(eq(postLikes.postId, postId), eq(postLikes.userId, userId))
+    );
+    return like;
+  }
+
+  async deletePostLike(postId: string, userId: string): Promise<void> {
+    await db.delete(postLikes).where(
+      and(eq(postLikes.postId, postId), eq(postLikes.userId, userId))
+    );
+  }
+
+  async getPostLikesCount(postId: string): Promise<number> {
+    const result = await db.select({ count: sql<number>`count(*)` })
+      .from(postLikes)
+      .where(eq(postLikes.postId, postId));
+    return Number(result[0]?.count || 0);
+  }
+
+  async createUpload(uploadData: InsertUpload): Promise<Upload> {
+    const [upload] = await db.insert(uploads).values(uploadData).returning();
+    return upload;
+  }
+
+  async getUpload(id: string): Promise<Upload | undefined> {
+    const [upload] = await db.select().from(uploads).where(eq(uploads.id, id));
+    return upload;
+  }
+
+  async getUploadsByUser(userId: string): Promise<Upload[]> {
+    return db.select().from(uploads).where(eq(uploads.userId, userId));
+  }
+
+  async deleteUpload(id: string): Promise<void> {
+    await db.delete(uploads).where(eq(uploads.id, id));
   }
 
   async createLocation(location: InsertLocation): Promise<Location> {
