@@ -1,6 +1,22 @@
+import { eq, and, or, ilike, gte, lte, desc, inArray } from "drizzle-orm";
+import { db } from "./db";
 import {
+  users,
+  follows,
+  products,
+  chats,
+  chatParticipants,
+  messages,
+  offers,
+  notifications,
+  communityPosts,
+  locations,
+  institutions,
+  phoneVerifications,
+  aiChatSessions,
   type User,
   type InsertUser,
+  type UpdateUser,
   type Product,
   type InsertProduct,
   type Chat,
@@ -14,28 +30,42 @@ import {
   type CommunityPost,
   type InsertCommunityPost,
   type Follow,
+  type Location,
+  type InsertLocation,
+  type Institution,
+  type InsertInstitution,
+  type PhoneVerification,
+  type AiChatSession,
 } from "@shared/schema";
 
+export interface UpsertUserData {
+  replitUserId: string;
+  email: string;
+  name: string;
+  avatar?: string | null;
+}
+
 export interface IStorage {
-  // User operations
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
+  getUserByReplitId(replitUserId: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, data: Partial<User>): Promise<User | undefined>;
+  upsertUser(userData: UpsertUserData): Promise<User>;
   getAllUsers(): Promise<User[]>;
 
-  // Follow operations
   followUser(followerId: string, followingId: string): Promise<Follow>;
   unfollowUser(followerId: string, followingId: string): Promise<void>;
   getFollowers(userId: string): Promise<string[]>;
   getFollowing(userId: string): Promise<string[]>;
   isFollowing(followerId: string, followingId: string): Promise<boolean>;
 
-  // Product operations
   createProduct(product: InsertProduct & { sellerId: string }): Promise<Product>;
   getProduct(id: string): Promise<Product | undefined>;
   getAllProducts(): Promise<Product[]>;
   getProductsBySeller(sellerId: string): Promise<Product[]>;
+  getProductsByLocation(locationId: string): Promise<Product[]>;
+  getProductsByInstitution(institutionId: string): Promise<Product[]>;
   updateProduct(id: string, data: Partial<Product>): Promise<Product | undefined>;
   deleteProduct(id: string): Promise<void>;
   incrementProductViews(id: string): Promise<void>;
@@ -45,21 +75,20 @@ export interface IStorage {
     minPrice?: number;
     maxPrice?: number;
     search?: string;
+    locationId?: string;
+    institutionId?: string;
   }): Promise<Product[]>;
 
-  // Chat operations
   createChat(productId: string | null, participantIds: string[]): Promise<Chat>;
   getChat(id: string): Promise<Chat | undefined>;
   getChatsByUser(userId: string): Promise<Chat[]>;
   addChatParticipant(chatId: string, userId: string): Promise<ChatParticipant>;
   getChatParticipants(chatId: string): Promise<ChatParticipant[]>;
 
-  // Message operations
   createMessage(message: InsertMessage & { senderId: string }): Promise<Message>;
   getMessagesByChat(chatId: string): Promise<Message[]>;
   markMessageAsRead(id: string): Promise<void>;
 
-  // Offer operations
   createOffer(offer: InsertOffer & { buyerId: string }): Promise<Offer>;
   getOffer(id: string): Promise<Offer | undefined>;
   getOffersByProduct(productId: string): Promise<Offer[]>;
@@ -67,127 +96,136 @@ export interface IStorage {
   updateOffer(id: string, data: Partial<Offer>): Promise<Offer | undefined>;
   updateOfferStatus(id: string, status: string): Promise<Offer | undefined>;
 
-  // Notification operations
   createNotification(notification: InsertNotification): Promise<Notification>;
   getNotificationsByUser(userId: string): Promise<Notification[]>;
   markNotificationAsRead(id: string): Promise<void>;
   markAllNotificationsAsRead(userId: string): Promise<void>;
 
-  // Community post operations
   createCommunityPost(post: InsertCommunityPost & { authorId: string }): Promise<CommunityPost>;
   getCommunityPost(id: string): Promise<CommunityPost | undefined>;
   getAllCommunityPosts(): Promise<CommunityPost[]>;
   updateCommunityPostLikes(id: string, likes: number): Promise<void>;
   deleteCommunityPost(id: string): Promise<void>;
+
+  createLocation(location: InsertLocation): Promise<Location>;
+  getLocation(id: string): Promise<Location | undefined>;
+  getLocationByDetails(country: string, state: string, city: string, pincode: string): Promise<Location | undefined>;
+  getAllLocations(): Promise<Location[]>;
+  getCountries(): Promise<string[]>;
+  getStates(country: string): Promise<string[]>;
+  getCities(country: string, state: string): Promise<string[]>;
+  getPincodes(country: string, state: string, city: string): Promise<string[]>;
+
+  createInstitution(institution: InsertInstitution): Promise<Institution>;
+  getInstitution(id: string): Promise<Institution | undefined>;
+  getInstitutionsByLocation(locationId: string): Promise<Institution[]>;
+  getAllInstitutions(): Promise<Institution[]>;
+  searchInstitutions(query: string, locationId?: string): Promise<Institution[]>;
+
+  createPhoneVerification(userId: string, phone: string, codeHash: string, expiresAt: Date): Promise<PhoneVerification>;
+  getPhoneVerification(userId: string, phone: string): Promise<PhoneVerification | undefined>;
+  updatePhoneVerification(id: string, data: Partial<PhoneVerification>): Promise<void>;
+  deletePhoneVerification(id: string): Promise<void>;
+
+  createAiChatSession(userId: string): Promise<AiChatSession>;
+  getAiChatSession(id: string): Promise<AiChatSession | undefined>;
+  getAiChatSessionsByUser(userId: string): Promise<AiChatSession[]>;
+  updateAiChatSession(id: string, messages: any[]): Promise<void>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-  private follows: Map<string, Follow>;
-  private products: Map<string, Product>;
-  private chats: Map<string, Chat>;
-  private chatParticipants: Map<string, ChatParticipant>;
-  private messages: Map<string, Message>;
-  private offers: Map<string, Offer>;
-  private notifications: Map<string, Notification>;
-  private communityPosts: Map<string, CommunityPost>;
-
-  constructor() {
-    this.users = new Map();
-    this.follows = new Map();
-    this.products = new Map();
-    this.chats = new Map();
-    this.chatParticipants = new Map();
-    this.messages = new Map();
-    this.offers = new Map();
-    this.notifications = new Map();
-    this.communityPosts = new Map();
-  }
-
-  // User operations
+export class DatabaseStorage implements IStorage {
   async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find((user) => user.email === email);
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
+  }
+
+  async getUserByReplitId(replitUserId: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.replitUserId, replitUserId));
+    return user;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = crypto.randomUUID();
-    const user: User = {
+    const [user] = await db.insert(users).values({
       name: insertUser.name,
       email: insertUser.email,
-      password: insertUser.password,
+      password: insertUser.password ?? null,
       avatar: insertUser.avatar ?? null,
-      id,
-      role: "student",
-      isVerified: false,
-      verificationStatus: "unverified",
-      createdAt: new Date(),
-    };
-    this.users.set(id, user);
+      phone: insertUser.phone ?? null,
+      bio: insertUser.bio ?? null,
+      locationId: insertUser.locationId ?? null,
+      institutionId: insertUser.institutionId ?? null,
+    }).returning();
     return user;
   }
 
   async updateUser(id: string, data: Partial<User>): Promise<User | undefined> {
-    const user = this.users.get(id);
-    if (!user) return undefined;
-    const updated = { ...user, ...data };
-    this.users.set(id, updated);
+    const [updated] = await db.update(users).set(data).where(eq(users.id, id)).returning();
     return updated;
   }
 
-  async getAllUsers(): Promise<User[]> {
-    return Array.from(this.users.values());
+  async upsertUser(userData: UpsertUserData): Promise<User> {
+    const existingUser = await this.getUserByReplitId(userData.replitUserId);
+    
+    if (existingUser) {
+      const [updated] = await db.update(users).set({
+        name: userData.name,
+        avatar: userData.avatar ?? existingUser.avatar,
+      }).where(eq(users.replitUserId, userData.replitUserId)).returning();
+      return updated;
+    }
+    
+    const [user] = await db.insert(users).values({
+      replitUserId: userData.replitUserId,
+      email: userData.email,
+      name: userData.name,
+      avatar: userData.avatar ?? null,
+    }).returning();
+    return user;
   }
 
-  // Follow operations
+  async getAllUsers(): Promise<User[]> {
+    return db.select().from(users);
+  }
+
   async followUser(followerId: string, followingId: string): Promise<Follow> {
-    const id = crypto.randomUUID();
-    const follow: Follow = {
-      id,
-      followerId,
-      followingId,
-      createdAt: new Date(),
-    };
-    this.follows.set(id, follow);
+    const [follow] = await db.insert(follows).values({ followerId, followingId }).returning();
     return follow;
   }
 
   async unfollowUser(followerId: string, followingId: string): Promise<void> {
-    const entries = Array.from(this.follows.entries());
-    for (const [id, follow] of entries) {
-      if (follow.followerId === followerId && follow.followingId === followingId) {
-        this.follows.delete(id);
-        return;
-      }
-    }
-  }
-
-  async getFollowers(userId: string): Promise<string[]> {
-    return Array.from(this.follows.values())
-      .filter((f) => f.followingId === userId)
-      .map((f) => f.followerId);
-  }
-
-  async getFollowing(userId: string): Promise<string[]> {
-    return Array.from(this.follows.values())
-      .filter((f) => f.followerId === userId)
-      .map((f) => f.followingId);
-  }
-
-  async isFollowing(followerId: string, followingId: string): Promise<boolean> {
-    return Array.from(this.follows.values()).some(
-      (f) => f.followerId === followerId && f.followingId === followingId
+    await db.delete(follows).where(
+      and(eq(follows.followerId, followerId), eq(follows.followingId, followingId))
     );
   }
 
-  // Product operations
+  async getFollowers(userId: string): Promise<string[]> {
+    const result = await db.select({ followerId: follows.followerId })
+      .from(follows)
+      .where(eq(follows.followingId, userId));
+    return result.map(r => r.followerId);
+  }
+
+  async getFollowing(userId: string): Promise<string[]> {
+    const result = await db.select({ followingId: follows.followingId })
+      .from(follows)
+      .where(eq(follows.followerId, userId));
+    return result.map(r => r.followingId);
+  }
+
+  async isFollowing(followerId: string, followingId: string): Promise<boolean> {
+    const [result] = await db.select().from(follows).where(
+      and(eq(follows.followerId, followerId), eq(follows.followingId, followingId))
+    );
+    return !!result;
+  }
+
   async createProduct(productData: InsertProduct & { sellerId: string }): Promise<Product> {
-    const id = crypto.randomUUID();
-    const product: Product = {
-      id,
+    const [product] = await db.insert(products).values({
       title: productData.title,
       description: productData.description,
       price: productData.price,
@@ -199,42 +237,46 @@ export class MemStorage implements IStorage {
       aiEstimatedPriceMin: productData.aiEstimatedPriceMin || null,
       aiEstimatedPriceMax: productData.aiEstimatedPriceMax || null,
       isPromoted: productData.isPromoted || false,
-      viewCount: 0,
-      createdAt: new Date(),
-    };
-    this.products.set(id, product);
+      locationId: productData.locationId || null,
+      institutionId: productData.institutionId || null,
+    }).returning();
     return product;
   }
 
   async getProduct(id: string): Promise<Product | undefined> {
-    return this.products.get(id);
+    const [product] = await db.select().from(products).where(eq(products.id, id));
+    return product;
   }
 
   async getAllProducts(): Promise<Product[]> {
-    return Array.from(this.products.values());
+    return db.select().from(products).orderBy(desc(products.createdAt));
   }
 
   async getProductsBySeller(sellerId: string): Promise<Product[]> {
-    return Array.from(this.products.values()).filter((p) => p.sellerId === sellerId);
+    return db.select().from(products).where(eq(products.sellerId, sellerId));
+  }
+
+  async getProductsByLocation(locationId: string): Promise<Product[]> {
+    return db.select().from(products).where(eq(products.locationId, locationId));
+  }
+
+  async getProductsByInstitution(institutionId: string): Promise<Product[]> {
+    return db.select().from(products).where(eq(products.institutionId, institutionId));
   }
 
   async updateProduct(id: string, data: Partial<Product>): Promise<Product | undefined> {
-    const product = this.products.get(id);
-    if (!product) return undefined;
-    const updated = { ...product, ...data };
-    this.products.set(id, updated);
+    const [updated] = await db.update(products).set(data).where(eq(products.id, id)).returning();
     return updated;
   }
 
   async deleteProduct(id: string): Promise<void> {
-    this.products.delete(id);
+    await db.delete(products).where(eq(products.id, id));
   }
 
   async incrementProductViews(id: string): Promise<void> {
-    const product = this.products.get(id);
+    const product = await this.getProduct(id);
     if (product) {
-      product.viewCount++;
-      this.products.set(id, product);
+      await db.update(products).set({ viewCount: product.viewCount + 1 }).where(eq(products.id, id));
     }
   }
 
@@ -244,229 +286,310 @@ export class MemStorage implements IStorage {
     minPrice?: number;
     maxPrice?: number;
     search?: string;
+    locationId?: string;
+    institutionId?: string;
   }): Promise<Product[]> {
-    let results = Array.from(this.products.values());
-
+    const conditions = [];
+    
     if (filters.category) {
-      results = results.filter((p) => p.category === filters.category);
+      conditions.push(eq(products.category, filters.category));
     }
     if (filters.condition) {
-      results = results.filter((p) => p.condition === filters.condition);
+      conditions.push(eq(products.condition, filters.condition));
     }
     if (filters.minPrice !== undefined) {
-      results = results.filter((p) => parseFloat(p.price) >= filters.minPrice!);
+      conditions.push(gte(products.price, filters.minPrice.toString()));
     }
     if (filters.maxPrice !== undefined) {
-      results = results.filter((p) => parseFloat(p.price) <= filters.maxPrice!);
+      conditions.push(lte(products.price, filters.maxPrice.toString()));
     }
     if (filters.search) {
-      const searchLower = filters.search.toLowerCase();
-      results = results.filter(
-        (p) =>
-          p.title.toLowerCase().includes(searchLower) ||
-          p.description.toLowerCase().includes(searchLower)
+      conditions.push(
+        or(
+          ilike(products.title, `%${filters.search}%`),
+          ilike(products.description, `%${filters.search}%`)
+        )
       );
     }
-
-    return results;
-  }
-
-  // Chat operations
-  async createChat(productId: string | null, participantIds: string[]): Promise<Chat> {
-    const id = crypto.randomUUID();
-    const chat: Chat = {
-      id,
-      productId: productId || null,
-      createdAt: new Date(),
-    };
-    this.chats.set(id, chat);
-
-    for (const userId of participantIds) {
-      await this.addChatParticipant(id, userId);
+    if (filters.locationId) {
+      conditions.push(eq(products.locationId, filters.locationId));
+    }
+    if (filters.institutionId) {
+      conditions.push(eq(products.institutionId, filters.institutionId));
     }
 
+    if (conditions.length === 0) {
+      return this.getAllProducts();
+    }
+
+    return db.select().from(products).where(and(...conditions)).orderBy(desc(products.createdAt));
+  }
+
+  async createChat(productId: string | null, participantIds: string[]): Promise<Chat> {
+    const [chat] = await db.insert(chats).values({ productId }).returning();
+    
+    for (const userId of participantIds) {
+      await this.addChatParticipant(chat.id, userId);
+    }
+    
     return chat;
   }
 
   async getChat(id: string): Promise<Chat | undefined> {
-    return this.chats.get(id);
+    const [chat] = await db.select().from(chats).where(eq(chats.id, id));
+    return chat;
   }
 
   async getChatsByUser(userId: string): Promise<Chat[]> {
-    const userParticipations = Array.from(this.chatParticipants.values()).filter(
-      (cp) => cp.userId === userId
-    );
-    const chatIds = userParticipations.map((cp) => cp.chatId);
-    return Array.from(this.chats.values()).filter((c) => chatIds.includes(c.id));
+    const participations = await db.select({ chatId: chatParticipants.chatId })
+      .from(chatParticipants)
+      .where(eq(chatParticipants.userId, userId));
+    
+    if (participations.length === 0) return [];
+    
+    const chatIds = participations.map(p => p.chatId);
+    return db.select().from(chats).where(inArray(chats.id, chatIds));
   }
 
   async addChatParticipant(chatId: string, userId: string): Promise<ChatParticipant> {
-    const id = crypto.randomUUID();
-    const participant: ChatParticipant = {
-      id,
-      chatId,
-      userId,
-      joinedAt: new Date(),
-    };
-    this.chatParticipants.set(id, participant);
+    const [participant] = await db.insert(chatParticipants).values({ chatId, userId }).returning();
     return participant;
   }
 
   async getChatParticipants(chatId: string): Promise<ChatParticipant[]> {
-    return Array.from(this.chatParticipants.values()).filter((cp) => cp.chatId === chatId);
+    return db.select().from(chatParticipants).where(eq(chatParticipants.chatId, chatId));
   }
 
-  // Message operations
   async createMessage(messageData: InsertMessage & { senderId: string }): Promise<Message> {
-    const id = crypto.randomUUID();
-    const message: Message = {
-      id,
+    const [message] = await db.insert(messages).values({
       chatId: messageData.chatId,
       senderId: messageData.senderId,
       content: messageData.content,
-      readAt: null,
-      createdAt: new Date(),
-    };
-    this.messages.set(id, message);
+    }).returning();
     return message;
   }
 
   async getMessagesByChat(chatId: string): Promise<Message[]> {
-    return Array.from(this.messages.values())
-      .filter((m) => m.chatId === chatId)
-      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+    return db.select().from(messages).where(eq(messages.chatId, chatId)).orderBy(messages.createdAt);
   }
 
   async markMessageAsRead(id: string): Promise<void> {
-    const message = this.messages.get(id);
-    if (message) {
-      message.readAt = new Date();
-      this.messages.set(id, message);
-    }
+    await db.update(messages).set({ readAt: new Date() }).where(eq(messages.id, id));
   }
 
-  // Offer operations
   async createOffer(offerData: InsertOffer & { buyerId: string }): Promise<Offer> {
-    const id = crypto.randomUUID();
-    const offer: Offer = {
-      id,
+    const [offer] = await db.insert(offers).values({
       productId: offerData.productId,
       buyerId: offerData.buyerId,
       amount: offerData.amount,
-      status: "pending",
-      createdAt: new Date(),
-    };
-    this.offers.set(id, offer);
+    }).returning();
     return offer;
   }
 
   async getOffer(id: string): Promise<Offer | undefined> {
-    return this.offers.get(id);
+    const [offer] = await db.select().from(offers).where(eq(offers.id, id));
+    return offer;
   }
 
   async getOffersByProduct(productId: string): Promise<Offer[]> {
-    return Array.from(this.offers.values()).filter((o) => o.productId === productId);
+    return db.select().from(offers).where(eq(offers.productId, productId));
   }
 
   async getOffersByBuyer(buyerId: string): Promise<Offer[]> {
-    return Array.from(this.offers.values()).filter((o) => o.buyerId === buyerId);
+    return db.select().from(offers).where(eq(offers.buyerId, buyerId));
   }
 
   async updateOffer(id: string, data: Partial<Offer>): Promise<Offer | undefined> {
-    const offer = this.offers.get(id);
-    if (!offer) return undefined;
-    const updated = { ...offer, ...data };
-    this.offers.set(id, updated);
+    const [updated] = await db.update(offers).set(data).where(eq(offers.id, id)).returning();
     return updated;
   }
 
   async updateOfferStatus(id: string, status: string): Promise<Offer | undefined> {
-    const offer = this.offers.get(id);
-    if (!offer) return undefined;
-    offer.status = status;
-    this.offers.set(id, offer);
-    return offer;
+    return this.updateOffer(id, { status });
   }
 
-  // Notification operations
   async createNotification(notificationData: InsertNotification): Promise<Notification> {
-    const id = crypto.randomUUID();
-    const notification: Notification = {
-      id,
+    const [notification] = await db.insert(notifications).values({
       userId: notificationData.userId,
       type: notificationData.type,
       content: notificationData.content,
       link: notificationData.link || null,
-      isRead: false,
-      createdAt: new Date(),
-    };
-    this.notifications.set(id, notification);
+    }).returning();
     return notification;
   }
 
   async getNotificationsByUser(userId: string): Promise<Notification[]> {
-    return Array.from(this.notifications.values())
-      .filter((n) => n.userId === userId)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return db.select().from(notifications)
+      .where(eq(notifications.userId, userId))
+      .orderBy(desc(notifications.createdAt));
   }
 
   async markNotificationAsRead(id: string): Promise<void> {
-    const notification = this.notifications.get(id);
-    if (notification) {
-      notification.isRead = true;
-      this.notifications.set(id, notification);
-    }
+    await db.update(notifications).set({ isRead: true }).where(eq(notifications.id, id));
   }
 
   async markAllNotificationsAsRead(userId: string): Promise<void> {
-    const entries = Array.from(this.notifications.entries());
-    for (const [id, notification] of entries) {
-      if (notification.userId === userId) {
-        notification.isRead = true;
-        this.notifications.set(id, notification);
-      }
-    }
+    await db.update(notifications).set({ isRead: true }).where(eq(notifications.userId, userId));
   }
 
-  // Community post operations
-  async createCommunityPost(
-    postData: InsertCommunityPost & { authorId: string }
-  ): Promise<CommunityPost> {
-    const id = crypto.randomUUID();
-    const post: CommunityPost = {
-      id,
+  async createCommunityPost(postData: InsertCommunityPost & { authorId: string }): Promise<CommunityPost> {
+    const [post] = await db.insert(communityPosts).values({
       authorId: postData.authorId,
       content: postData.content,
       type: postData.type || "general",
-      likes: 0,
-      comments: 0,
-      createdAt: new Date(),
-    };
-    this.communityPosts.set(id, post);
+    }).returning();
     return post;
   }
 
   async getCommunityPost(id: string): Promise<CommunityPost | undefined> {
-    return this.communityPosts.get(id);
+    const [post] = await db.select().from(communityPosts).where(eq(communityPosts.id, id));
+    return post;
   }
 
   async getAllCommunityPosts(): Promise<CommunityPost[]> {
-    return Array.from(this.communityPosts.values()).sort(
-      (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
-    );
+    return db.select().from(communityPosts).orderBy(desc(communityPosts.createdAt));
   }
 
   async updateCommunityPostLikes(id: string, likes: number): Promise<void> {
-    const post = this.communityPosts.get(id);
-    if (post) {
-      post.likes = likes;
-      this.communityPosts.set(id, post);
-    }
+    await db.update(communityPosts).set({ likes }).where(eq(communityPosts.id, id));
   }
 
   async deleteCommunityPost(id: string): Promise<void> {
-    this.communityPosts.delete(id);
+    await db.delete(communityPosts).where(eq(communityPosts.id, id));
+  }
+
+  async createLocation(location: InsertLocation): Promise<Location> {
+    const [loc] = await db.insert(locations).values(location).returning();
+    return loc;
+  }
+
+  async getLocation(id: string): Promise<Location | undefined> {
+    const [loc] = await db.select().from(locations).where(eq(locations.id, id));
+    return loc;
+  }
+
+  async getLocationByDetails(country: string, state: string, city: string, pincode: string): Promise<Location | undefined> {
+    const [loc] = await db.select().from(locations).where(
+      and(
+        eq(locations.country, country),
+        eq(locations.state, state),
+        eq(locations.city, city),
+        eq(locations.pincode, pincode)
+      )
+    );
+    return loc;
+  }
+
+  async getAllLocations(): Promise<Location[]> {
+    return db.select().from(locations);
+  }
+
+  async getCountries(): Promise<string[]> {
+    const result = await db.selectDistinct({ country: locations.country }).from(locations);
+    return result.map(r => r.country);
+  }
+
+  async getStates(country: string): Promise<string[]> {
+    const result = await db.selectDistinct({ state: locations.state })
+      .from(locations)
+      .where(eq(locations.country, country));
+    return result.map(r => r.state);
+  }
+
+  async getCities(country: string, state: string): Promise<string[]> {
+    const result = await db.selectDistinct({ city: locations.city })
+      .from(locations)
+      .where(and(eq(locations.country, country), eq(locations.state, state)));
+    return result.map(r => r.city);
+  }
+
+  async getPincodes(country: string, state: string, city: string): Promise<string[]> {
+    const result = await db.selectDistinct({ pincode: locations.pincode })
+      .from(locations)
+      .where(and(
+        eq(locations.country, country),
+        eq(locations.state, state),
+        eq(locations.city, city)
+      ));
+    return result.map(r => r.pincode);
+  }
+
+  async createInstitution(institution: InsertInstitution): Promise<Institution> {
+    const [inst] = await db.insert(institutions).values(institution).returning();
+    return inst;
+  }
+
+  async getInstitution(id: string): Promise<Institution | undefined> {
+    const [inst] = await db.select().from(institutions).where(eq(institutions.id, id));
+    return inst;
+  }
+
+  async getInstitutionsByLocation(locationId: string): Promise<Institution[]> {
+    return db.select().from(institutions).where(eq(institutions.locationId, locationId));
+  }
+
+  async getAllInstitutions(): Promise<Institution[]> {
+    return db.select().from(institutions);
+  }
+
+  async searchInstitutions(query: string, locationId?: string): Promise<Institution[]> {
+    const conditions = [ilike(institutions.name, `%${query}%`)];
+    if (locationId) {
+      conditions.push(eq(institutions.locationId, locationId));
+    }
+    return db.select().from(institutions).where(and(...conditions));
+  }
+
+  async createPhoneVerification(userId: string, phone: string, codeHash: string, expiresAt: Date): Promise<PhoneVerification> {
+    const [verification] = await db.insert(phoneVerifications).values({
+      userId,
+      phone,
+      codeHash,
+      expiresAt,
+    }).returning();
+    return verification;
+  }
+
+  async getPhoneVerification(userId: string, phone: string): Promise<PhoneVerification | undefined> {
+    const [verification] = await db.select().from(phoneVerifications).where(
+      and(eq(phoneVerifications.userId, userId), eq(phoneVerifications.phone, phone))
+    );
+    return verification;
+  }
+
+  async updatePhoneVerification(id: string, data: Partial<PhoneVerification>): Promise<void> {
+    await db.update(phoneVerifications).set(data).where(eq(phoneVerifications.id, id));
+  }
+
+  async deletePhoneVerification(id: string): Promise<void> {
+    await db.delete(phoneVerifications).where(eq(phoneVerifications.id, id));
+  }
+
+  async createAiChatSession(userId: string): Promise<AiChatSession> {
+    const [session] = await db.insert(aiChatSessions).values({
+      userId,
+      messages: [],
+    }).returning();
+    return session;
+  }
+
+  async getAiChatSession(id: string): Promise<AiChatSession | undefined> {
+    const [session] = await db.select().from(aiChatSessions).where(eq(aiChatSessions.id, id));
+    return session;
+  }
+
+  async getAiChatSessionsByUser(userId: string): Promise<AiChatSession[]> {
+    return db.select().from(aiChatSessions)
+      .where(eq(aiChatSessions.userId, userId))
+      .orderBy(desc(aiChatSessions.updatedAt));
+  }
+
+  async updateAiChatSession(id: string, sessionMessages: any[]): Promise<void> {
+    await db.update(aiChatSessions).set({ 
+      messages: sessionMessages,
+      updatedAt: new Date(),
+    }).where(eq(aiChatSessions.id, id));
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();

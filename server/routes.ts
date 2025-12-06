@@ -1,154 +1,86 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
-import session from "express-session";
-import MemoryStore from "memorystore";
 import bcrypt from "bcryptjs";
 import { storage } from "./storage";
-import { insertUserSchema, insertProductSchema, insertMessageSchema, insertOfferSchema, insertCommunityPostSchema, type User } from "@shared/schema";
+import { setupAuth, isAuthenticated } from "./replitAuth";
+import { insertUserSchema, insertProductSchema, insertMessageSchema, insertOfferSchema, insertCommunityPostSchema, updateUserSchema, type User } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
 
-declare module "express-session" {
-  interface SessionData {
-    userId: string;
-  }
+async function getCurrentUserId(req: Request): Promise<string | null> {
+  const user = req.user as any;
+  if (!user?.claims?.sub) return null;
+  const dbUser = await storage.getUserByReplitId(user.claims.sub);
+  return dbUser?.id || null;
 }
-
-const requireAuth = (req: Request, res: Response, next: NextFunction) => {
-  if (!req.session.userId) {
-    return res.status(401).json({ message: "Authentication required" });
-  }
-  next();
-};
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  const SessionStore = MemoryStore(session);
+  await setupAuth(app);
 
-  app.use(
-    session({
-      secret: process.env.SESSION_SECRET || "campus-marketplace-secret-key-change-in-production",
-      resave: false,
-      saveUninitialized: false,
-      store: new SessionStore({
-        checkPeriod: 86400000,
-      }),
-      cookie: {
-        maxAge: 1000 * 60 * 60 * 24 * 7,
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-      },
-    })
-  );
-
-  app.post("/api/signup", async (req, res) => {
+  app.get("/api/auth/user", isAuthenticated, async (req: any, res) => {
     try {
-      const validationResult = insertUserSchema.safeParse(req.body);
-      
+      const replitUserId = req.user.claims.sub;
+      const user = await storage.getUserByReplitId(replitUserId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      const { password: _, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  app.patch("/api/auth/user", isAuthenticated, async (req: any, res) => {
+    try {
+      const replitUserId = req.user.claims.sub;
+      const user = await storage.getUserByReplitId(replitUserId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const validationResult = updateUserSchema.safeParse(req.body);
       if (!validationResult.success) {
         return res.status(400).json({ 
           message: fromZodError(validationResult.error).message 
         });
       }
 
-      const { name, email, password, avatar } = validationResult.data;
-
-      const existingUser = await storage.getUserByEmail(email);
-      if (existingUser) {
-        return res.status(400).json({ message: "Email already in use" });
+      const updated = await storage.updateUser(user.id, validationResult.data);
+      if (!updated) {
+        return res.status(500).json({ message: "Failed to update user" });
       }
-
-      const hashedPassword = await bcrypt.hash(password, 10);
-
-      const user = await storage.createUser({
-        name,
-        email,
-        password: hashedPassword,
-        avatar,
-      });
-
-      req.session.userId = user.id;
-
-      const { password: _, ...userWithoutPassword } = user;
-      res.status(201).json(userWithoutPassword);
-    } catch (error) {
-      console.error("Signup error:", error);
-      res.status(500).json({ message: "Failed to create user" });
-    }
-  });
-
-  app.post("/api/login", async (req, res) => {
-    try {
-      const { email, password } = req.body;
-
-      if (!email || !password) {
-        return res.status(400).json({ message: "Email and password are required" });
-      }
-
-      const user = await storage.getUserByEmail(email);
-      if (!user) {
-        return res.status(401).json({ message: "Invalid email or password" });
-      }
-
-      const isValidPassword = await bcrypt.compare(password, user.password);
-      if (!isValidPassword) {
-        return res.status(401).json({ message: "Invalid email or password" });
-      }
-
-      req.session.userId = user.id;
-
-      const { password: _, ...userWithoutPassword } = user;
+      const { password: _, ...userWithoutPassword } = updated;
       res.json(userWithoutPassword);
     } catch (error) {
-      console.error("Login error:", error);
-      res.status(500).json({ message: "Failed to login" });
+      console.error("Update user error:", error);
+      res.status(500).json({ message: "Failed to update user" });
     }
   });
 
-  app.post("/api/logout", (req, res) => {
-    req.session.destroy((err) => {
-      if (err) {
-        return res.status(500).json({ message: "Failed to logout" });
-      }
-      res.json({ message: "Logged out successfully" });
-    });
-  });
-
-  app.get("/api/user", async (req, res) => {
-    if (!req.session.userId) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-
+  app.post("/api/products", isAuthenticated, async (req: any, res) => {
     try {
-      const user = await storage.getUser(req.session.userId);
-      if (!user) {
-        req.session.destroy(() => {});
-        return res.status(401).json({ message: "User not found" });
+      const userId = await getCurrentUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const { password: _, ...userWithoutPassword } = user;
-      res.json(userWithoutPassword);
-    } catch (error) {
-      console.error("Get user error:", error);
-      res.status(500).json({ message: "Failed to get user" });
-    }
-  });
-
-  app.post("/api/products", requireAuth, async (req, res) => {
-    try {
       const validationResult = insertProductSchema.safeParse(req.body);
-      
       if (!validationResult.success) {
         return res.status(400).json({ 
           message: fromZodError(validationResult.error).message 
         });
       }
 
+      const user = await storage.getUserByReplitId(req.user.claims.sub);
       const product = await storage.createProduct({
         ...validationResult.data,
-        sellerId: req.session.userId!,
+        sellerId: userId,
+        locationId: user?.locationId || undefined,
+        institutionId: user?.institutionId || undefined,
       });
 
       res.status(201).json(product);
@@ -160,7 +92,7 @@ export async function registerRoutes(
 
   app.get("/api/products", async (req, res) => {
     try {
-      const { category, condition, minPrice, maxPrice, search } = req.query;
+      const { category, condition, minPrice, maxPrice, search, locationId, institutionId } = req.query;
 
       const filters: {
         category?: string;
@@ -168,23 +100,17 @@ export async function registerRoutes(
         minPrice?: number;
         maxPrice?: number;
         search?: string;
+        locationId?: string;
+        institutionId?: string;
       } = {};
 
-      if (category && typeof category === "string") {
-        filters.category = category;
-      }
-      if (condition && typeof condition === "string") {
-        filters.condition = condition;
-      }
-      if (minPrice && typeof minPrice === "string") {
-        filters.minPrice = parseFloat(minPrice);
-      }
-      if (maxPrice && typeof maxPrice === "string") {
-        filters.maxPrice = parseFloat(maxPrice);
-      }
-      if (search && typeof search === "string") {
-        filters.search = search;
-      }
+      if (category && typeof category === "string") filters.category = category;
+      if (condition && typeof condition === "string") filters.condition = condition;
+      if (minPrice && typeof minPrice === "string") filters.minPrice = parseFloat(minPrice);
+      if (maxPrice && typeof maxPrice === "string") filters.maxPrice = parseFloat(maxPrice);
+      if (search && typeof search === "string") filters.search = search;
+      if (locationId && typeof locationId === "string") filters.locationId = locationId;
+      if (institutionId && typeof institutionId === "string") filters.institutionId = institutionId;
 
       const products = Object.keys(filters).length > 0
         ? await storage.searchProducts(filters)
@@ -200,11 +126,9 @@ export async function registerRoutes(
   app.get("/api/products/:id", async (req, res) => {
     try {
       const product = await storage.getProduct(req.params.id);
-      
       if (!product) {
         return res.status(404).json({ message: "Product not found" });
       }
-
       res.json(product);
     } catch (error) {
       console.error("Get product error:", error);
@@ -212,15 +136,16 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/products/:id", requireAuth, async (req, res) => {
+  app.patch("/api/products/:id", isAuthenticated, async (req: any, res) => {
     try {
+      const userId = await getCurrentUserId(req);
       const product = await storage.getProduct(req.params.id);
       
       if (!product) {
         return res.status(404).json({ message: "Product not found" });
       }
 
-      if (product.sellerId !== req.session.userId) {
+      if (product.sellerId !== userId) {
         return res.status(403).json({ message: "Not authorized to update this product" });
       }
 
@@ -232,15 +157,16 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/products/:id", requireAuth, async (req, res) => {
+  app.delete("/api/products/:id", isAuthenticated, async (req: any, res) => {
     try {
+      const userId = await getCurrentUserId(req);
       const product = await storage.getProduct(req.params.id);
       
       if (!product) {
         return res.status(404).json({ message: "Product not found" });
       }
 
-      if (product.sellerId !== req.session.userId) {
+      if (product.sellerId !== userId) {
         return res.status(403).json({ message: "Not authorized to delete this product" });
       }
 
@@ -272,16 +198,19 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/chats", requireAuth, async (req, res) => {
+  app.post("/api/chats", isAuthenticated, async (req: any, res) => {
     try {
+      const userId = await getCurrentUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
       const { productId, participantIds } = req.body;
 
       if (!participantIds || !Array.isArray(participantIds) || participantIds.length === 0) {
         return res.status(400).json({ message: "participantIds array is required" });
       }
 
-      if (!participantIds.includes(req.session.userId!)) {
-        participantIds.push(req.session.userId!);
+      if (!participantIds.includes(userId)) {
+        participantIds.push(userId);
       }
 
       const chat = await storage.createChat(productId || null, participantIds);
@@ -292,9 +221,12 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/chats", requireAuth, async (req, res) => {
+  app.get("/api/chats", isAuthenticated, async (req: any, res) => {
     try {
-      const chats = await storage.getChatsByUser(req.session.userId!);
+      const userId = await getCurrentUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      const chats = await storage.getChatsByUser(userId);
       res.json(chats);
     } catch (error) {
       console.error("Get chats error:", error);
@@ -302,10 +234,12 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/chats/:id", requireAuth, async (req, res) => {
+  app.get("/api/chats/:id", isAuthenticated, async (req: any, res) => {
     try {
+      const userId = await getCurrentUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
       const chat = await storage.getChat(req.params.id);
-      
       if (!chat) {
         return res.status(404).json({ message: "Chat not found" });
       }
@@ -313,7 +247,7 @@ export async function registerRoutes(
       const participants = await storage.getChatParticipants(req.params.id);
       const participantIds = participants.map(p => p.userId);
 
-      if (!participantIds.includes(req.session.userId!)) {
+      if (!participantIds.includes(userId)) {
         return res.status(403).json({ message: "Not authorized to view this chat" });
       }
 
@@ -324,10 +258,12 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/chats/:id/messages", requireAuth, async (req, res) => {
+  app.post("/api/chats/:id/messages", isAuthenticated, async (req: any, res) => {
     try {
+      const userId = await getCurrentUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
       const chat = await storage.getChat(req.params.id);
-      
       if (!chat) {
         return res.status(404).json({ message: "Chat not found" });
       }
@@ -335,12 +271,11 @@ export async function registerRoutes(
       const participants = await storage.getChatParticipants(req.params.id);
       const participantIds = participants.map(p => p.userId);
 
-      if (!participantIds.includes(req.session.userId!)) {
+      if (!participantIds.includes(userId)) {
         return res.status(403).json({ message: "Not authorized to send messages in this chat" });
       }
 
       const validationResult = insertMessageSchema.safeParse(req.body);
-      
       if (!validationResult.success) {
         return res.status(400).json({ 
           message: fromZodError(validationResult.error).message 
@@ -353,7 +288,7 @@ export async function registerRoutes(
 
       const message = await storage.createMessage({
         ...validationResult.data,
-        senderId: req.session.userId!,
+        senderId: userId,
       });
 
       res.status(201).json(message);
@@ -363,10 +298,12 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/chats/:id/messages", requireAuth, async (req, res) => {
+  app.get("/api/chats/:id/messages", isAuthenticated, async (req: any, res) => {
     try {
+      const userId = await getCurrentUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
       const chat = await storage.getChat(req.params.id);
-      
       if (!chat) {
         return res.status(404).json({ message: "Chat not found" });
       }
@@ -374,7 +311,7 @@ export async function registerRoutes(
       const participants = await storage.getChatParticipants(req.params.id);
       const participantIds = participants.map(p => p.userId);
 
-      if (!participantIds.includes(req.session.userId!)) {
+      if (!participantIds.includes(userId)) {
         return res.status(403).json({ message: "Not authorized to view messages in this chat" });
       }
 
@@ -386,7 +323,7 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/messages/:id/read", requireAuth, async (req, res) => {
+  app.patch("/api/messages/:id/read", isAuthenticated, async (req, res) => {
     try {
       await storage.markMessageAsRead(req.params.id);
       res.json({ message: "Message marked as read" });
@@ -396,10 +333,12 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/offers", requireAuth, async (req, res) => {
+  app.post("/api/offers", isAuthenticated, async (req: any, res) => {
     try {
+      const userId = await getCurrentUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
       const validationResult = insertOfferSchema.safeParse(req.body);
-      
       if (!validationResult.success) {
         return res.status(400).json({ 
           message: fromZodError(validationResult.error).message 
@@ -413,13 +352,13 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Product not found" });
       }
 
-      if (product.sellerId === req.session.userId) {
+      if (product.sellerId === userId) {
         return res.status(400).json({ message: "Cannot make an offer on your own product" });
       }
 
       const offer = await storage.createOffer({
         productId,
-        buyerId: req.session.userId!,
+        buyerId: userId,
         amount,
       });
 
@@ -430,15 +369,16 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/offers/product/:productId", requireAuth, async (req, res) => {
+  app.get("/api/offers/product/:productId", isAuthenticated, async (req: any, res) => {
     try {
+      const userId = await getCurrentUserId(req);
       const product = await storage.getProduct(req.params.productId);
       
       if (!product) {
         return res.status(404).json({ message: "Product not found" });
       }
 
-      if (product.sellerId !== req.session.userId) {
+      if (product.sellerId !== userId) {
         return res.status(403).json({ message: "Not authorized to view offers for this product" });
       }
 
@@ -450,9 +390,12 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/offers/buyer", requireAuth, async (req, res) => {
+  app.get("/api/offers/buyer", isAuthenticated, async (req: any, res) => {
     try {
-      const offers = await storage.getOffersByBuyer(req.session.userId!);
+      const userId = await getCurrentUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      const offers = await storage.getOffersByBuyer(userId);
       res.json(offers);
     } catch (error) {
       console.error("Get offers by buyer error:", error);
@@ -460,8 +403,9 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/offers/:id/accept", requireAuth, async (req, res) => {
+  app.patch("/api/offers/:id/accept", isAuthenticated, async (req: any, res) => {
     try {
+      const userId = await getCurrentUserId(req);
       const offer = await storage.getOffer(req.params.id);
       
       if (!offer) {
@@ -473,7 +417,7 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Product not found" });
       }
 
-      if (product.sellerId !== req.session.userId) {
+      if (product.sellerId !== userId) {
         return res.status(403).json({ message: "Not authorized to accept this offer" });
       }
 
@@ -489,8 +433,9 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/offers/:id/reject", requireAuth, async (req, res) => {
+  app.patch("/api/offers/:id/reject", isAuthenticated, async (req: any, res) => {
     try {
+      const userId = await getCurrentUserId(req);
       const offer = await storage.getOffer(req.params.id);
       
       if (!offer) {
@@ -502,7 +447,7 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Product not found" });
       }
 
-      if (product.sellerId !== req.session.userId) {
+      if (product.sellerId !== userId) {
         return res.status(403).json({ message: "Not authorized to reject this offer" });
       }
 
@@ -518,10 +463,12 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/community", requireAuth, async (req, res) => {
+  app.post("/api/community", isAuthenticated, async (req: any, res) => {
     try {
+      const userId = await getCurrentUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
       const validationResult = insertCommunityPostSchema.safeParse(req.body);
-      
       if (!validationResult.success) {
         return res.status(400).json({ 
           message: fromZodError(validationResult.error).message 
@@ -530,7 +477,7 @@ export async function registerRoutes(
 
       const post = await storage.createCommunityPost({
         ...validationResult.data,
-        authorId: req.session.userId!,
+        authorId: userId,
       });
 
       res.status(201).json(post);
@@ -553,11 +500,9 @@ export async function registerRoutes(
   app.get("/api/community/:id", async (req, res) => {
     try {
       const post = await storage.getCommunityPost(req.params.id);
-      
       if (!post) {
         return res.status(404).json({ message: "Community post not found" });
       }
-
       res.json(post);
     } catch (error) {
       console.error("Get community post error:", error);
@@ -565,17 +510,15 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/community/:id/like", requireAuth, async (req, res) => {
+  app.post("/api/community/:id/like", isAuthenticated, async (req, res) => {
     try {
       const post = await storage.getCommunityPost(req.params.id);
-      
       if (!post) {
         return res.status(404).json({ message: "Community post not found" });
       }
 
       const newLikes = post.likes + 1;
       await storage.updateCommunityPostLikes(req.params.id, newLikes);
-
       res.json({ likes: newLikes });
     } catch (error) {
       console.error("Like community post error:", error);
@@ -583,15 +526,16 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/community/:id", requireAuth, async (req, res) => {
+  app.delete("/api/community/:id", isAuthenticated, async (req: any, res) => {
     try {
+      const userId = await getCurrentUserId(req);
       const post = await storage.getCommunityPost(req.params.id);
       
       if (!post) {
         return res.status(404).json({ message: "Community post not found" });
       }
 
-      if (post.authorId !== req.session.userId) {
+      if (post.authorId !== userId) {
         return res.status(403).json({ message: "Not authorized to delete this post" });
       }
 
@@ -603,15 +547,18 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/users", requireAuth, async (req, res) => {
+  app.get("/api/users", isAuthenticated, async (req: any, res) => {
     try {
-      const currentUser = await storage.getUser(req.session.userId!);
+      const userId = await getCurrentUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      const currentUser = await storage.getUser(userId);
       if (!currentUser || currentUser.role !== "admin") {
         return res.status(403).json({ message: "Admin access required" });
       }
 
-      const users = await storage.getAllUsers();
-      const usersWithoutPasswords = users.map(({ password: _, ...user }) => user);
+      const allUsers = await storage.getAllUsers();
+      const usersWithoutPasswords = allUsers.map(({ password: _, ...user }) => user);
       res.json(usersWithoutPasswords);
     } catch (error) {
       console.error("Get all users error:", error);
@@ -622,7 +569,6 @@ export async function registerRoutes(
   app.get("/api/users/:id", async (req, res) => {
     try {
       const user = await storage.getUser(req.params.id);
-      
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -635,12 +581,14 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/users/:id/follow", requireAuth, async (req, res) => {
+  app.post("/api/users/:id/follow", isAuthenticated, async (req: any, res) => {
     try {
-      const targetUserId = req.params.id;
-      const currentUserId = req.session.userId!;
+      const userId = await getCurrentUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
-      if (targetUserId === currentUserId) {
+      const targetUserId = req.params.id;
+
+      if (targetUserId === userId) {
         return res.status(400).json({ message: "Cannot follow yourself" });
       }
 
@@ -649,12 +597,12 @@ export async function registerRoutes(
         return res.status(404).json({ message: "User not found" });
       }
 
-      const isAlreadyFollowing = await storage.isFollowing(currentUserId, targetUserId);
+      const isAlreadyFollowing = await storage.isFollowing(userId, targetUserId);
       if (isAlreadyFollowing) {
         return res.status(400).json({ message: "Already following this user" });
       }
 
-      await storage.followUser(currentUserId, targetUserId);
+      await storage.followUser(userId, targetUserId);
       res.status(201).json({ message: "Successfully followed user" });
     } catch (error) {
       console.error("Follow user error:", error);
@@ -662,22 +610,24 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/users/:id/follow", requireAuth, async (req, res) => {
+  app.delete("/api/users/:id/follow", isAuthenticated, async (req: any, res) => {
     try {
+      const userId = await getCurrentUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
       const targetUserId = req.params.id;
-      const currentUserId = req.session.userId!;
 
       const targetUser = await storage.getUser(targetUserId);
       if (!targetUser) {
         return res.status(404).json({ message: "User not found" });
       }
 
-      const isFollowing = await storage.isFollowing(currentUserId, targetUserId);
+      const isFollowing = await storage.isFollowing(userId, targetUserId);
       if (!isFollowing) {
         return res.status(400).json({ message: "Not following this user" });
       }
 
-      await storage.unfollowUser(currentUserId, targetUserId);
+      await storage.unfollowUser(userId, targetUserId);
       res.json({ message: "Successfully unfollowed user" });
     } catch (error) {
       console.error("Unfollow user error:", error);
@@ -703,7 +653,6 @@ export async function registerRoutes(
           return null;
         })
       );
-
       res.json(followers.filter(Boolean));
     } catch (error) {
       console.error("Get followers error:", error);
@@ -721,15 +670,14 @@ export async function registerRoutes(
       const followingIds = await storage.getFollowing(req.params.id);
       const following = await Promise.all(
         followingIds.map(async (id) => {
-          const user = await storage.getUser(id);
-          if (user) {
-            const { password: _, ...userWithoutPassword } = user;
+          const followedUser = await storage.getUser(id);
+          if (followedUser) {
+            const { password: _, ...userWithoutPassword } = followedUser;
             return userWithoutPassword;
           }
           return null;
         })
       );
-
       res.json(following.filter(Boolean));
     } catch (error) {
       console.error("Get following error:", error);
@@ -737,38 +685,141 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/users/:id/verify", requireAuth, async (req, res) => {
+  app.get("/api/notifications", isAuthenticated, async (req: any, res) => {
     try {
-      const currentUser = await storage.getUser(req.session.userId!);
-      if (!currentUser || currentUser.role !== "admin") {
-        return res.status(403).json({ message: "Admin access required" });
-      }
+      const userId = await getCurrentUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
-      const targetUser = await storage.getUser(req.params.id);
-      if (!targetUser) {
-        return res.status(404).json({ message: "User not found" });
-      }
-
-      const { verificationStatus } = req.body;
-      if (!verificationStatus || !["verified", "unverified", "pending"].includes(verificationStatus)) {
-        return res.status(400).json({ message: "Invalid verification status" });
-      }
-
-      const isVerified = verificationStatus === "verified";
-      const updatedUser = await storage.updateUser(req.params.id, {
-        verificationStatus,
-        isVerified,
-      });
-
-      if (updatedUser) {
-        const { password: _, ...userWithoutPassword } = updatedUser;
-        res.json(userWithoutPassword);
-      } else {
-        res.status(500).json({ message: "Failed to update user" });
-      }
+      const notifications = await storage.getNotificationsByUser(userId);
+      res.json(notifications);
     } catch (error) {
-      console.error("Update verification status error:", error);
-      res.status(500).json({ message: "Failed to update verification status" });
+      console.error("Get notifications error:", error);
+      res.status(500).json({ message: "Failed to get notifications" });
+    }
+  });
+
+  app.patch("/api/notifications/:id/read", isAuthenticated, async (req, res) => {
+    try {
+      await storage.markNotificationAsRead(req.params.id);
+      res.json({ message: "Notification marked as read" });
+    } catch (error) {
+      console.error("Mark notification as read error:", error);
+      res.status(500).json({ message: "Failed to mark notification as read" });
+    }
+  });
+
+  app.patch("/api/notifications/read-all", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = await getCurrentUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      await storage.markAllNotificationsAsRead(userId);
+      res.json({ message: "All notifications marked as read" });
+    } catch (error) {
+      console.error("Mark all notifications as read error:", error);
+      res.status(500).json({ message: "Failed to mark all notifications as read" });
+    }
+  });
+
+  app.get("/api/locations/countries", async (req, res) => {
+    try {
+      const countries = await storage.getCountries();
+      res.json(countries);
+    } catch (error) {
+      console.error("Get countries error:", error);
+      res.status(500).json({ message: "Failed to get countries" });
+    }
+  });
+
+  app.get("/api/locations/states/:country", async (req, res) => {
+    try {
+      const states = await storage.getStates(req.params.country);
+      res.json(states);
+    } catch (error) {
+      console.error("Get states error:", error);
+      res.status(500).json({ message: "Failed to get states" });
+    }
+  });
+
+  app.get("/api/locations/cities/:country/:state", async (req, res) => {
+    try {
+      const cities = await storage.getCities(req.params.country, req.params.state);
+      res.json(cities);
+    } catch (error) {
+      console.error("Get cities error:", error);
+      res.status(500).json({ message: "Failed to get cities" });
+    }
+  });
+
+  app.get("/api/locations/pincodes/:country/:state/:city", async (req, res) => {
+    try {
+      const pincodes = await storage.getPincodes(req.params.country, req.params.state, req.params.city);
+      res.json(pincodes);
+    } catch (error) {
+      console.error("Get pincodes error:", error);
+      res.status(500).json({ message: "Failed to get pincodes" });
+    }
+  });
+
+  app.post("/api/locations", isAuthenticated, async (req: any, res) => {
+    try {
+      const { country, state, city, pincode } = req.body;
+      
+      if (!country || !state || !city || !pincode) {
+        return res.status(400).json({ message: "Country, state, city and pincode are required" });
+      }
+
+      let location = await storage.getLocationByDetails(country, state, city, pincode);
+      
+      if (!location) {
+        location = await storage.createLocation({ country, state, city, pincode });
+      }
+      
+      res.json(location);
+    } catch (error) {
+      console.error("Create/get location error:", error);
+      res.status(500).json({ message: "Failed to create/get location" });
+    }
+  });
+
+  app.get("/api/institutions", async (req, res) => {
+    try {
+      const { locationId, search } = req.query;
+      
+      if (search && typeof search === "string") {
+        const institutions = await storage.searchInstitutions(
+          search,
+          typeof locationId === "string" ? locationId : undefined
+        );
+        return res.json(institutions);
+      }
+
+      if (locationId && typeof locationId === "string") {
+        const institutions = await storage.getInstitutionsByLocation(locationId);
+        return res.json(institutions);
+      }
+
+      const institutions = await storage.getAllInstitutions();
+      res.json(institutions);
+    } catch (error) {
+      console.error("Get institutions error:", error);
+      res.status(500).json({ message: "Failed to get institutions" });
+    }
+  });
+
+  app.post("/api/institutions", isAuthenticated, async (req: any, res) => {
+    try {
+      const { name, type, locationId, address } = req.body;
+      
+      if (!name || !type || !locationId) {
+        return res.status(400).json({ message: "Name, type and locationId are required" });
+      }
+
+      const institution = await storage.createInstitution({ name, type, locationId, address });
+      res.status(201).json(institution);
+    } catch (error) {
+      console.error("Create institution error:", error);
+      res.status(500).json({ message: "Failed to create institution" });
     }
   });
 
