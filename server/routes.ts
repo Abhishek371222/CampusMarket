@@ -5,6 +5,7 @@ import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { insertUserSchema, insertProductSchema, insertMessageSchema, insertOfferSchema, insertCommunityPostSchema, updateUserSchema, type User } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
+import { chat as aiChat, estimatePrice } from "./openai";
 
 async function getCurrentUserId(req: Request): Promise<string | null> {
   const user = req.user as any;
@@ -843,6 +844,96 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Create institution error:", error);
       res.status(500).json({ message: "Failed to create institution" });
+    }
+  });
+
+  app.post("/api/ai/chat", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = await getCurrentUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      const { message, sessionId } = req.body;
+      
+      if (!message || typeof message !== "string") {
+        return res.status(400).json({ message: "Message is required" });
+      }
+
+      let session;
+      if (sessionId) {
+        session = await storage.getAiChatSession(sessionId);
+        if (!session || session.userId !== userId) {
+          return res.status(404).json({ message: "Chat session not found" });
+        }
+      } else {
+        session = await storage.createAiChatSession(userId);
+      }
+
+      const existingMessages = (session.messages as any[]) || [];
+      
+      const response = await aiChat(existingMessages, message);
+      
+      const updatedMessages = [
+        ...existingMessages,
+        { role: "user", content: message },
+        { role: "assistant", content: response },
+      ];
+      
+      await storage.updateAiChatSession(session.id, updatedMessages);
+
+      res.json({
+        sessionId: session.id,
+        response,
+        messages: updatedMessages,
+      });
+    } catch (error) {
+      console.error("AI chat error:", error);
+      res.status(500).json({ message: "Failed to process AI chat" });
+    }
+  });
+
+  app.get("/api/ai/sessions", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = await getCurrentUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      const sessions = await storage.getAiChatSessionsByUser(userId);
+      res.json(sessions);
+    } catch (error) {
+      console.error("Get AI sessions error:", error);
+      res.status(500).json({ message: "Failed to get AI sessions" });
+    }
+  });
+
+  app.get("/api/ai/sessions/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = await getCurrentUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      const session = await storage.getAiChatSession(req.params.id);
+      if (!session || session.userId !== userId) {
+        return res.status(404).json({ message: "Chat session not found" });
+      }
+
+      res.json(session);
+    } catch (error) {
+      console.error("Get AI session error:", error);
+      res.status(500).json({ message: "Failed to get AI session" });
+    }
+  });
+
+  app.post("/api/ai/estimate-price", isAuthenticated, async (req: any, res) => {
+    try {
+      const { title, description, condition, category } = req.body;
+      
+      if (!title || !description || !condition || !category) {
+        return res.status(400).json({ message: "Title, description, condition, and category are required" });
+      }
+
+      const estimate = await estimatePrice(title, description, condition, category);
+      res.json(estimate);
+    } catch (error) {
+      console.error("Price estimate error:", error);
+      res.status(500).json({ message: "Failed to estimate price" });
     }
   });
 
