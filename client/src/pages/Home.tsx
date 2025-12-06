@@ -1,13 +1,13 @@
-import { useMarketStore } from "@/lib/mockData";
 import { ProductCard } from "@/components/ui/product-card";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, BookOpen, Laptop, Sofa, Shirt } from "lucide-react";
 import { Link } from "wouter";
 import { SearchBar } from "@/components/ui/search-bar";
+import { useProducts } from "@/lib/api-hooks";
 import heroImage from "@assets/stock_images/university_campus_st_950cd798.jpg";
 
 export default function Home() {
-  const products = useMarketStore((state) => state.products);
+  const { data: products = [] } = useProducts();
   const featuredProducts = products.slice(0, 4);
 
   const categories = [
