@@ -1,25 +1,78 @@
 import { createContext, useContext, ReactNode } from "react";
-import { useMarketStore, User } from "./mockData";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "./queryClient";
+import type { User } from "@shared/schema";
 
 type AuthContextType = {
-  user: User | null;
-  login: (email: string) => void;
-  logout: () => void;
+  user: User | null | undefined;
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
+  signup: (name: string, email: string, password: string) => Promise<void>;
   isLoading: boolean;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const user = useMarketStore((state) => state.currentUser);
-  const login = useMarketStore((state) => state.login);
-  const logout = useMarketStore((state) => state.logout);
+  const { data: user, isLoading } = useQuery<User | null>({
+    queryKey: ["/api/user"],
+    queryFn: async () => {
+      try {
+        const res = await fetch("/api/user", { credentials: "include" });
+        if (!res.ok) return null;
+        return await res.json();
+      } catch {
+        return null;
+      }
+    },
+    staleTime: Infinity,
+    retry: false,
+  });
 
-  // Mock loading state for realism
-  const isLoading = false; 
+  const loginMutation = useMutation({
+    mutationFn: async ({ email, password }: { email: string; password: string }) => {
+      const res = await apiRequest("POST", "/api/login", { email, password });
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+    },
+  });
+
+  const signupMutation = useMutation({
+    mutationFn: async ({ name, email, password }: { name: string; email: string; password: string }) => {
+      const res = await apiRequest("POST", "/api/signup", { name, email, password });
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+    },
+  });
+
+  const logoutMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", "/api/logout", {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      queryClient.clear();
+    },
+  });
+
+  const login = async (email: string, password: string) => {
+    await loginMutation.mutateAsync({ email, password });
+  };
+
+  const signup = async (name: string, email: string, password: string) => {
+    await signupMutation.mutateAsync({ name, email, password });
+  };
+
+  const logout = async () => {
+    await logoutMutation.mutateAsync();
+  };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, login, logout, signup, isLoading }}>
       {children}
     </AuthContext.Provider>
   );
