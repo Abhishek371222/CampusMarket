@@ -12,7 +12,6 @@ import { useLocation } from "wouter";
 import { useProducts, useInstitutions, useLocations } from "@/lib/api-hooks";
 import { useAuth } from "@/lib/auth";
 import { Loader2, MapPin, Building2 } from "lucide-react";
-import type { Location } from "@shared/schema";
 
 export default function Marketplace() {
   const [routeLocation] = useLocation();
@@ -43,7 +42,7 @@ export default function Marketplace() {
   });
 
   const uniqueCities = useMemo(() => {
-    const cityMap = new Map<string, Location>();
+    const cityMap = new Map<string, typeof locations[number]>();
     locations.forEach(loc => {
       const key = `${loc.city}-${loc.state}-${loc.country}`;
       if (!cityMap.has(key)) {

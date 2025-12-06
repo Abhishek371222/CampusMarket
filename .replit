@@ -20,7 +20,7 @@ localPort = 32799
 externalPort = 3002
 
 [[ports]]
-localPort = 34025
+localPort = 33301
 externalPort = 3003
 
 [[ports]]
@@ -58,3 +58,8 @@ waitForPort = 5000
 [agent]
 mockupState = "FULLSTACK"
 integrations = ["javascript_openai:1.0.0"]
+
+[userenv]
+
+[userenv.shared]
+GEMINI_API_KEY = "AIzaSyBqER2ut44TMYm1_EZu7Yjfr5YpRx8GKhA"
