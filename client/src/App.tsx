@@ -21,6 +21,7 @@ import Login from "@/pages/Login";
 import SignUp from "@/pages/SignUp";
 import Community from "@/pages/Community";
 import AdminDashboard from "@/pages/Admin";
+import Orders from "@/pages/Orders";
 import Privacy from "@/pages/Privacy";
 import Terms from "@/pages/Terms";
 import Cookies from "@/pages/Cookies";
@@ -69,6 +70,7 @@ function Router() {
           <Route path="/signup" component={SignUp} />
           <Route path="/community" component={Community} />
           <Route path="/admin" component={AdminDashboard} />
+          <Route path="/orders" component={Orders} />
           <Route path="/privacy" component={Privacy} />
           <Route path="/terms" component={Terms} />
           <Route path="/cookies" component={Cookies} />

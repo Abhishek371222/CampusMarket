@@ -4,10 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProductCard } from "@/components/ui/product-card";
 import { useLocation } from "wouter";
-import { LogOut, ShieldCheck, CheckCircle2, Users, Loader2, Pencil } from "lucide-react";
+import { LogOut, ShieldCheck, CheckCircle2, Users, Loader2, Pencil, Upload, Clock, XCircle, ShoppingBag } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
-import { useProducts, useFollowing } from "@/lib/api-hooks";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useProducts, useFollowing, useVerificationStatus, useUploadVerification, useOrders } from "@/lib/api-hooks";
+import { useState, useRef } from "react";
 
 export default function Profile() {
   const { user, logout } = useAuth();
@@ -15,6 +19,11 @@ export default function Profile() {
   const { toast } = useToast();
   const { data: products, isLoading: productsLoading } = useProducts();
   const { data: following, isLoading: followingLoading } = useFollowing(user?.id);
+  const { data: verification, isLoading: verificationLoading } = useVerificationStatus();
+  const { data: orders, isLoading: ordersLoading } = useOrders();
+  const uploadVerificationMutation = useUploadVerification();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   if (!user) {
     setLocation("/login");
@@ -23,6 +32,35 @@ export default function Profile() {
 
   const myListings = products?.filter((p) => p.sellerId === user.id) || [];
   const followingCount = following?.length || 0;
+  const myOrders = orders || [];
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+    }
+  };
+
+  const handleUploadVerification = async () => {
+    if (!selectedFile) return;
+    
+    const formData = new FormData();
+    formData.append("document", selectedFile);
+    formData.append("documentType", "college_id");
+    
+    try {
+      await uploadVerificationMutation.mutateAsync(formData);
+      setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      toast({ title: "Document uploaded", description: "Your ID is pending review" });
+    } catch (error) {
+      toast({ 
+        title: "Upload failed", 
+        description: error instanceof Error ? error.message : "Please try again",
+        variant: "destructive" 
+      });
+    }
+  };
 
   return (
     <div className="container px-4 md:px-6 py-8">
@@ -63,10 +101,18 @@ export default function Profile() {
             </Badge>
           </div>
 
-          {user.verificationStatus === "pending" && (
-            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg max-w-md">
-               <p className="text-blue-700 text-sm flex items-center gap-2">
-                 <ShieldCheck className="h-4 w-4" /> Verification Pending Approval
+          {verification?.status === "pending" && (
+            <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg max-w-md">
+               <p className="text-blue-700 dark:text-blue-300 text-sm flex items-center gap-2">
+                 <Clock className="h-4 w-4" /> Verification Pending Approval
+               </p>
+            </div>
+          )}
+          {verification?.status === "rejected" && (
+            <div className="mt-4 p-4 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg max-w-md">
+               <p className="text-red-700 dark:text-red-300 text-sm flex items-center gap-2">
+                 <XCircle className="h-4 w-4" /> Verification Rejected
+                 {verification.notes && <span className="ml-2">- {verification.notes}</span>}
                </p>
             </div>
           )}
@@ -84,7 +130,7 @@ export default function Profile() {
 
       {/* Content Tabs */}
       <Tabs defaultValue="listings" className="w-full">
-        <TabsList className="w-full justify-start border-b rounded-none bg-transparent p-0 h-auto">
+        <TabsList className="w-full justify-start flex-wrap gap-1 border-b rounded-none bg-transparent p-0 h-auto">
           <TabsTrigger 
             value="listings" 
             className="rounded-none border-b-2 border-transparent px-4 py-3 font-medium text-muted-foreground data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
@@ -92,6 +138,24 @@ export default function Profile() {
           >
             My Listings ({productsLoading ? "..." : myListings.length})
           </TabsTrigger>
+          <TabsTrigger 
+            value="orders" 
+            className="rounded-none border-b-2 border-transparent px-4 py-3 font-medium text-muted-foreground data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
+            data-testid="tab-orders"
+          >
+            <ShoppingBag className="h-4 w-4 mr-2" />
+            Orders ({ordersLoading ? "..." : myOrders.length})
+          </TabsTrigger>
+          {!user.isVerified && (
+            <TabsTrigger 
+              value="verification" 
+              className="rounded-none border-b-2 border-transparent px-4 py-3 font-medium text-muted-foreground data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
+              data-testid="tab-verification"
+            >
+              <ShieldCheck className="h-4 w-4 mr-2" />
+              Get Verified
+            </TabsTrigger>
+          )}
         </TabsList>
         
         <TabsContent value="listings" className="mt-6">
@@ -112,6 +176,140 @@ export default function Profile() {
             </div>
           )}
         </TabsContent>
+
+        <TabsContent value="orders" className="mt-6">
+          {ordersLoading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : myOrders.length > 0 ? (
+            <div className="space-y-4">
+              {myOrders.map((order) => (
+                <Card key={order.id} className="hover-elevate" data-testid={`card-order-${order.id}`}>
+                  <CardContent className="flex items-center justify-between gap-4 p-4">
+                    <div className="flex-1">
+                      <p className="font-medium">Order #{order.id.slice(0, 8)}</p>
+                      <p className="text-sm text-muted-foreground">
+                        ${order.amount} - {order.status}
+                      </p>
+                    </div>
+                    <Badge variant={order.status === "delivered" ? "default" : "secondary"}>
+                      {order.status}
+                    </Badge>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setLocation(`/orders`)}
+                      data-testid={`button-view-order-${order.id}`}
+                    >
+                      View Details
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 border-2 border-dashed rounded-xl">
+              <ShoppingBag className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <p className="text-muted-foreground mb-4">No orders yet.</p>
+              <Button onClick={() => setLocation("/market")} data-testid="button-browse-market">Browse Marketplace</Button>
+            </div>
+          )}
+        </TabsContent>
+
+        {!user.isVerified && (
+          <TabsContent value="verification" className="mt-6">
+            <Card className="max-w-xl">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ShieldCheck className="h-5 w-5" />
+                  Student ID Verification
+                </CardTitle>
+                <CardDescription>
+                  Upload your college or university ID to become a verified student. This helps build trust with other users.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {verification?.status === "pending" ? (
+                  <div className="p-4 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
+                    <p className="text-blue-700 dark:text-blue-300 flex items-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      Your verification is pending review. We'll notify you once it's approved.
+                    </p>
+                  </div>
+                ) : verification?.status === "rejected" ? (
+                  <div className="space-y-4">
+                    <div className="p-4 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg">
+                      <p className="text-red-700 dark:text-red-300 flex items-center gap-2">
+                        <XCircle className="h-4 w-4" />
+                        Your previous submission was rejected.
+                        {verification.notes && <span className="block mt-1 text-sm">{verification.notes}</span>}
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="id-document">Upload a new document</Label>
+                      <Input
+                        id="id-document"
+                        type="file"
+                        accept="image/*,.pdf"
+                        ref={fileInputRef}
+                        onChange={handleFileSelect}
+                        data-testid="input-verification-document"
+                      />
+                      {selectedFile && (
+                        <p className="text-sm text-muted-foreground">Selected: {selectedFile.name}</p>
+                      )}
+                    </div>
+                    <Button 
+                      onClick={handleUploadVerification}
+                      disabled={!selectedFile || uploadVerificationMutation.isPending}
+                      data-testid="button-upload-verification"
+                    >
+                      {uploadVerificationMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <Upload className="h-4 w-4 mr-2" />
+                      )}
+                      Resubmit Document
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="id-document">Upload your student ID</Label>
+                      <Input
+                        id="id-document"
+                        type="file"
+                        accept="image/*,.pdf"
+                        ref={fileInputRef}
+                        onChange={handleFileSelect}
+                        data-testid="input-verification-document"
+                      />
+                      {selectedFile && (
+                        <p className="text-sm text-muted-foreground">Selected: {selectedFile.name}</p>
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Your ID will be reviewed by our team. Accepted formats: JPG, PNG, PDF.
+                    </p>
+                    <Button 
+                      onClick={handleUploadVerification}
+                      disabled={!selectedFile || uploadVerificationMutation.isPending}
+                      data-testid="button-upload-verification"
+                    >
+                      {uploadVerificationMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <Upload className="h-4 w-4 mr-2" />
+                      )}
+                      Upload Document
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

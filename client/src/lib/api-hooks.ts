@@ -10,7 +10,9 @@ import type {
   InsertCommunityPost,
   Offer,
   InsertOffer,
-  User
+  User,
+  Order,
+  IdVerification
 } from "@shared/schema";
 
 // Products Hooks
@@ -334,6 +336,104 @@ export function useUpdateVerification(userId: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+    },
+  });
+}
+
+// ID Verification Hooks
+export function useVerificationStatus() {
+  return useQuery<IdVerification | null>({
+    queryKey: ["/api/verification/status"],
+    queryFn: async () => {
+      const res = await fetch("/api/verification/status", { credentials: "include" });
+      if (!res.ok) {
+        if (res.status === 404) return null;
+        throw new Error(await res.text());
+      }
+      return res.json();
+    },
+  });
+}
+
+export function useUploadVerification() {
+  return useMutation({
+    mutationFn: async (formData: FormData) => {
+      const res = await fetch("/api/verification", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/verification/status"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+    },
+  });
+}
+
+export function usePendingVerifications() {
+  return useQuery<IdVerification[]>({
+    queryKey: ["/api/admin/verifications"],
+  });
+}
+
+export function useReviewVerification() {
+  return useMutation({
+    mutationFn: async ({ id, action, notes }: { id: string; action: "approved" | "rejected"; notes?: string }) => {
+      const res = await apiRequest("PATCH", `/api/admin/verifications/${id}`, { action, notes });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/verifications"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+    },
+  });
+}
+
+// Order Hooks
+export function useOrders(type?: "buying" | "selling") {
+  const url = type ? `/api/orders?type=${type}` : "/api/orders";
+  return useQuery<Order[]>({
+    queryKey: ["/api/orders", type],
+    queryFn: async () => {
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
+  });
+}
+
+export function useOrder(id: string | undefined) {
+  return useQuery<Order>({
+    queryKey: ["/api/orders", id],
+    enabled: !!id,
+  });
+}
+
+export function useBuyProduct() {
+  return useMutation({
+    mutationFn: async ({ productId, data }: { productId: string; data: { paymentMethod?: string; meetupLocation?: string; notes?: string } }) => {
+      const res = await apiRequest("POST", `/api/products/${productId}/buy`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+    },
+  });
+}
+
+export function useUpdateOrderStatus() {
+  return useMutation({
+    mutationFn: async ({ orderId, status }: { orderId: string; status: string }) => {
+      const res = await apiRequest("PATCH", `/api/orders/${orderId}/status`, { status });
+      return res.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/orders", variables.orderId] });
     },
   });
 }

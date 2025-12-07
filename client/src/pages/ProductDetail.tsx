@@ -5,14 +5,16 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Heart, MessageCircle, Share2, ShieldCheck, ArrowLeft, Wand2, Eye, CircleDollarSign, Loader2 } from "lucide-react";
+import { Heart, MessageCircle, Share2, ShieldCheck, ArrowLeft, Wand2, Eye, CircleDollarSign, Loader2, ShoppingCart, MapPin } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import NotFound from "./not-found";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useProduct, useProductView, useCreateOffer, useCreateChat, useUserProfile, useFollowUser, useUnfollowUser } from "@/lib/api-hooks";
+import { useProduct, useProductView, useCreateOffer, useCreateChat, useUserProfile, useFollowUser, useUnfollowUser, useBuyProduct } from "@/lib/api-hooks";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function ProductDetail() {
   const [, params] = useRoute("/product/:id");
@@ -21,6 +23,10 @@ export default function ProductDetail() {
   const { toast } = useToast();
   const [offerAmount, setOfferAmount] = useState("");
   const [isOfferOpen, setIsOfferOpen] = useState(false);
+  const [isBuyOpen, setIsBuyOpen] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState("");
+  const [meetupLocation, setMeetupLocation] = useState("");
+  const [buyNotes, setBuyNotes] = useState("");
   
   const { data: product, isLoading: productLoading, error: productError } = useProduct(params?.id);
   const { data: seller, isLoading: sellerLoading } = useUserProfile(product?.sellerId);
@@ -29,6 +35,7 @@ export default function ProductDetail() {
   const createChatMutation = useCreateChat();
   const followUserMutation = useFollowUser(product?.sellerId || "");
   const unfollowUserMutation = useUnfollowUser(product?.sellerId || "");
+  const buyProductMutation = useBuyProduct();
 
   // Note: isFollowing would need to be fetched from followers/following API
   const isFollowing = false; // TODO: Implement following check
@@ -120,6 +127,43 @@ export default function ProductDetail() {
     }
   };
 
+  const handleBuyNow = async () => {
+    if (!user) {
+      setLocation("/login");
+      return;
+    }
+    if (user.id === product.sellerId) {
+      toast({ title: "You cannot buy your own item", variant: "destructive" });
+      return;
+    }
+
+    try {
+      await buyProductMutation.mutateAsync({
+        productId: product.id,
+        data: {
+          paymentMethod: paymentMethod || undefined,
+          meetupLocation: meetupLocation || undefined,
+          notes: buyNotes || undefined,
+        }
+      });
+      setIsBuyOpen(false);
+      setPaymentMethod("");
+      setMeetupLocation("");
+      setBuyNotes("");
+      toast({ 
+        title: "Purchase initiated!", 
+        description: "The seller has been notified. Check your orders for updates." 
+      });
+      setLocation("/orders");
+    } catch (error) {
+      toast({ 
+        title: "Purchase failed", 
+        description: error instanceof Error ? error.message : "Please try again",
+        variant: "destructive" 
+      });
+    }
+  };
+
   return (
     <div className="container px-4 md:px-6 py-8">
       <Button variant="ghost" className="mb-6 pl-0 hover:pl-2 transition-all" onClick={() => window.history.back()}>
@@ -181,66 +225,147 @@ export default function ProductDetail() {
                 </div>
              </div>
 
-             <div className="flex gap-3">
-                <Button 
-                  size="lg" 
-                  className="flex-1 gap-2" 
-                  onClick={handleContact}
-                  disabled={createChatMutation.isPending}
-                  data-testid="button-chat"
-                >
-                   {createChatMutation.isPending ? (
-                     <Loader2 className="h-5 w-5 animate-spin" />
-                   ) : (
-                     <MessageCircle className="h-5 w-5" />
-                   )}
-                   Chat
-                </Button>
-                
-                <Dialog open={isOfferOpen} onOpenChange={setIsOfferOpen}>
-                  <DialogTrigger asChild>
-                    <Button 
-                      size="lg" 
-                      variant="secondary" 
-                      className="flex-1 gap-2"
-                      data-testid="button-make-offer"
-                    >
-                      <CircleDollarSign className="h-5 w-5" /> Make Offer
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Make an Offer</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4 py-4">
-                      <div className="space-y-2">
-                        <Label>Your Price ($)</Label>
-                        <Input 
-                          type="number" 
-                          value={offerAmount} 
-                          onChange={(e) => setOfferAmount(e.target.value)}
-                          placeholder={product.price.toString()}
-                          data-testid="input-offer-amount"
-                        />
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        The seller will be notified immediately. Payment is held in escrow until you verify the item in person.
-                      </p>
-                    </div>
-                    <DialogFooter>
+             <div className="flex flex-col gap-3">
+                <div className="flex gap-3">
+                  <Dialog open={isBuyOpen} onOpenChange={setIsBuyOpen}>
+                    <DialogTrigger asChild>
                       <Button 
-                        onClick={handleOffer}
-                        disabled={createOfferMutation.isPending || !offerAmount}
-                        data-testid="button-send-offer"
+                        size="lg" 
+                        className="flex-1 gap-2"
+                        disabled={product.status !== "available" || user?.id === product.sellerId}
+                        data-testid="button-buy-now"
                       >
-                        {createOfferMutation.isPending ? (
-                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        ) : null}
-                        Send Offer
+                        <ShoppingCart className="h-5 w-5" /> Buy Now - ${product.price}
                       </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Complete Your Purchase</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <div className="p-4 bg-muted/50 rounded-lg">
+                          <p className="font-medium">{product.title}</p>
+                          <p className="text-2xl font-bold text-primary">${product.price}</p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Payment Method</Label>
+                          <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                            <SelectTrigger data-testid="select-payment-method">
+                              <SelectValue placeholder="Select payment method" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="cash">Cash on meetup</SelectItem>
+                              <SelectItem value="venmo">Venmo</SelectItem>
+                              <SelectItem value="zelle">Zelle</SelectItem>
+                              <SelectItem value="paypal">PayPal</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Meetup Location</Label>
+                          <div className="relative">
+                            <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                            <Input 
+                              value={meetupLocation} 
+                              onChange={(e) => setMeetupLocation(e.target.value)}
+                              placeholder="e.g., Student Center, Library"
+                              className="pl-10"
+                              data-testid="input-meetup-location"
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Notes for Seller (optional)</Label>
+                          <Textarea 
+                            value={buyNotes} 
+                            onChange={(e) => setBuyNotes(e.target.value)}
+                            placeholder="Any special requests or questions..."
+                            className="resize-none"
+                            data-testid="input-buy-notes"
+                          />
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          The seller will be notified immediately. Arrange a safe public meetup location on campus.
+                        </p>
+                      </div>
+                      <DialogFooter>
+                        <Button 
+                          onClick={handleBuyNow}
+                          disabled={buyProductMutation.isPending}
+                          data-testid="button-confirm-purchase"
+                        >
+                          {buyProductMutation.isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          ) : null}
+                          Confirm Purchase
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+                
+                <div className="flex gap-3">
+                  <Button 
+                    size="lg" 
+                    variant="outline"
+                    className="flex-1 gap-2" 
+                    onClick={handleContact}
+                    disabled={createChatMutation.isPending}
+                    data-testid="button-chat"
+                  >
+                     {createChatMutation.isPending ? (
+                       <Loader2 className="h-5 w-5 animate-spin" />
+                     ) : (
+                       <MessageCircle className="h-5 w-5" />
+                     )}
+                     Chat
+                  </Button>
+                  
+                  <Dialog open={isOfferOpen} onOpenChange={setIsOfferOpen}>
+                    <DialogTrigger asChild>
+                      <Button 
+                        size="lg" 
+                        variant="secondary" 
+                        className="flex-1 gap-2"
+                        data-testid="button-make-offer"
+                      >
+                        <CircleDollarSign className="h-5 w-5" /> Make Offer
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Make an Offer</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                          <Label>Your Price ($)</Label>
+                          <Input 
+                            type="number" 
+                            value={offerAmount} 
+                            onChange={(e) => setOfferAmount(e.target.value)}
+                            placeholder={product.price.toString()}
+                            data-testid="input-offer-amount"
+                          />
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          The seller will be notified immediately. Payment is held in escrow until you verify the item in person.
+                        </p>
+                      </div>
+                      <DialogFooter>
+                        <Button 
+                          onClick={handleOffer}
+                          disabled={createOfferMutation.isPending || !offerAmount}
+                          data-testid="button-send-offer"
+                        >
+                          {createOfferMutation.isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          ) : null}
+                          Send Offer
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
              </div>
           </div>
 
