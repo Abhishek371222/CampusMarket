@@ -17,6 +17,8 @@ import {
   institutions,
   phoneVerifications,
   aiChatSessions,
+  idVerifications,
+  orders,
   type User,
   type InsertUser,
   type UpdateUser,
@@ -44,6 +46,10 @@ import {
   type InsertInstitution,
   type PhoneVerification,
   type AiChatSession,
+  type IdVerification,
+  type InsertIdVerification,
+  type Order,
+  type InsertOrder,
 } from "@shared/schema";
 
 export interface UpsertUserData {
@@ -154,6 +160,21 @@ export interface IStorage {
   getAiChatSession(id: string): Promise<AiChatSession | undefined>;
   getAiChatSessionsByUser(userId: string): Promise<AiChatSession[]>;
   updateAiChatSession(id: string, messages: any[]): Promise<void>;
+
+  createIdVerification(userId: string, documentPath: string, documentType?: string): Promise<IdVerification>;
+  getIdVerification(id: string): Promise<IdVerification | undefined>;
+  getIdVerificationByUser(userId: string): Promise<IdVerification | undefined>;
+  updateIdVerification(id: string, data: Partial<IdVerification>): Promise<IdVerification | undefined>;
+  getAllPendingVerifications(): Promise<IdVerification[]>;
+
+  createOrder(order: InsertOrder): Promise<Order>;
+  getOrder(id: string): Promise<Order | undefined>;
+  getOrdersByBuyer(buyerId: string): Promise<Order[]>;
+  getOrdersBySeller(sellerId: string): Promise<Order[]>;
+  updateOrder(id: string, data: Partial<Order>): Promise<Order | undefined>;
+
+  getFollowsWithHistory(userId: string): Promise<Follow[]>;
+  updateFollowInteraction(followerId: string, followingId: string, chatId: string, summary: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -679,6 +700,94 @@ export class DatabaseStorage implements IStorage {
       messages: sessionMessages,
       updatedAt: new Date(),
     }).where(eq(aiChatSessions.id, id));
+  }
+
+  async createIdVerification(userId: string, documentPath: string, documentType: string = "college_id"): Promise<IdVerification> {
+    const [verification] = await db.insert(idVerifications).values({
+      userId,
+      documentPath,
+      documentType,
+    }).returning();
+    return verification;
+  }
+
+  async getIdVerification(id: string): Promise<IdVerification | undefined> {
+    const [verification] = await db.select().from(idVerifications).where(eq(idVerifications.id, id));
+    return verification;
+  }
+
+  async getIdVerificationByUser(userId: string): Promise<IdVerification | undefined> {
+    const [verification] = await db.select().from(idVerifications)
+      .where(eq(idVerifications.userId, userId))
+      .orderBy(desc(idVerifications.createdAt))
+      .limit(1);
+    return verification;
+  }
+
+  async updateIdVerification(id: string, data: Partial<IdVerification>): Promise<IdVerification | undefined> {
+    const [updated] = await db.update(idVerifications).set(data).where(eq(idVerifications.id, id)).returning();
+    return updated;
+  }
+
+  async getAllPendingVerifications(): Promise<IdVerification[]> {
+    return db.select().from(idVerifications)
+      .where(eq(idVerifications.status, "pending"))
+      .orderBy(idVerifications.createdAt);
+  }
+
+  async createOrder(orderData: InsertOrder): Promise<Order> {
+    const [order] = await db.insert(orders).values({
+      productId: orderData.productId,
+      buyerId: orderData.buyerId,
+      sellerId: orderData.sellerId,
+      amount: orderData.amount,
+      paymentMethod: orderData.paymentMethod || null,
+      shippingAddress: orderData.shippingAddress || null,
+      meetupLocation: orderData.meetupLocation || null,
+      notes: orderData.notes || null,
+    }).returning();
+    return order;
+  }
+
+  async getOrder(id: string): Promise<Order | undefined> {
+    const [order] = await db.select().from(orders).where(eq(orders.id, id));
+    return order;
+  }
+
+  async getOrdersByBuyer(buyerId: string): Promise<Order[]> {
+    return db.select().from(orders)
+      .where(eq(orders.buyerId, buyerId))
+      .orderBy(desc(orders.createdAt));
+  }
+
+  async getOrdersBySeller(sellerId: string): Promise<Order[]> {
+    return db.select().from(orders)
+      .where(eq(orders.sellerId, sellerId))
+      .orderBy(desc(orders.createdAt));
+  }
+
+  async updateOrder(id: string, data: Partial<Order>): Promise<Order | undefined> {
+    const [updated] = await db.update(orders).set({
+      ...data,
+      updatedAt: new Date(),
+    }).where(eq(orders.id, id)).returning();
+    return updated;
+  }
+
+  async getFollowsWithHistory(userId: string): Promise<Follow[]> {
+    return db.select().from(follows)
+      .where(eq(follows.followerId, userId))
+      .orderBy(desc(follows.lastMessageAt));
+  }
+
+  async updateFollowInteraction(followerId: string, followingId: string, chatId: string, summary: string): Promise<void> {
+    await db.update(follows).set({
+      chatId,
+      lastMessageAt: new Date(),
+      lastInteractionSummary: summary,
+    }).where(
+      and(eq(follows.followerId, followerId), eq(follows.followingId, followingId))
+    );
   }
 }
 

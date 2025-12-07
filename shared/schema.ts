@@ -72,7 +72,38 @@ export const follows = pgTable("follows", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   followerId: varchar("follower_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   followingId: varchar("following_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  chatId: varchar("chat_id").references(() => chats.id, { onDelete: "set null" }),
+  lastMessageAt: timestamp("last_message_at"),
+  lastInteractionSummary: text("last_interaction_summary"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const idVerifications = pgTable("id_verifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  documentPath: text("document_path").notNull(),
+  documentType: text("document_type").notNull().default("college_id"),
+  status: text("status").notNull().default("pending"),
+  reviewerId: varchar("reviewer_id").references(() => users.id),
+  reviewedAt: timestamp("reviewed_at"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const orders = pgTable("orders", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  productId: varchar("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+  buyerId: varchar("buyer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  sellerId: varchar("seller_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  status: text("status").notNull().default("pending"),
+  paymentMethod: text("payment_method"),
+  paymentRef: text("payment_ref"),
+  shippingAddress: text("shipping_address"),
+  meetupLocation: text("meetup_location"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
 export const products = pgTable("products", {
@@ -132,6 +163,9 @@ export const notifications = pgTable("notifications", {
   content: text("content").notNull(),
   link: text("link"),
   isRead: boolean("is_read").notNull().default(false),
+  metadata: jsonb("metadata"),
+  relatedUserId: varchar("related_user_id").references(() => users.id),
+  relatedProductId: varchar("related_product_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -266,6 +300,29 @@ export const insertAiChatSessionSchema = createInsertSchema(aiChatSessions).omit
   updatedAt: true,
 });
 
+export const insertIdVerificationSchema = createInsertSchema(idVerifications).omit({
+  id: true,
+  createdAt: true,
+  reviewerId: true,
+  reviewedAt: true,
+  status: true,
+});
+
+export const insertOrderSchema = createInsertSchema(orders).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  status: true,
+  paymentRef: true,
+});
+
+export const insertFollowSchema = createInsertSchema(follows).omit({
+  id: true,
+  createdAt: true,
+  lastMessageAt: true,
+  lastInteractionSummary: true,
+});
+
 export type Location = typeof locations.$inferSelect;
 export type InsertLocation = z.infer<typeof insertLocationSchema>;
 
@@ -309,3 +366,11 @@ export type InsertPhoneVerification = z.infer<typeof insertPhoneVerificationSche
 
 export type AiChatSession = typeof aiChatSessions.$inferSelect;
 export type InsertAiChatSession = z.infer<typeof insertAiChatSessionSchema>;
+
+export type IdVerification = typeof idVerifications.$inferSelect;
+export type InsertIdVerification = z.infer<typeof insertIdVerificationSchema>;
+
+export type Order = typeof orders.$inferSelect;
+export type InsertOrder = z.infer<typeof insertOrderSchema>;
+
+export type InsertFollow = z.infer<typeof insertFollowSchema>;

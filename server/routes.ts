@@ -1313,5 +1313,396 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/verification", isAuthenticated, upload.single("document"), async (req: any, res) => {
+    try {
+      const userId = await getCurrentUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      if (!req.file) {
+        return res.status(400).json({ message: "Document file is required" });
+      }
+
+      const existingVerification = await storage.getIdVerificationByUser(userId);
+      if (existingVerification && existingVerification.status === "pending") {
+        return res.status(400).json({ message: "You already have a pending verification request" });
+      }
+
+      const documentPath = `/uploads/${req.file.filename}`;
+      const documentType = req.body.documentType || "college_id";
+
+      const verification = await storage.createIdVerification(userId, documentPath, documentType);
+      
+      await storage.updateUser(userId, { verificationStatus: "pending" });
+
+      res.status(201).json(verification);
+    } catch (error) {
+      console.error("Create verification error:", error);
+      res.status(500).json({ message: "Failed to submit verification" });
+    }
+  });
+
+  app.get("/api/verification/status", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = await getCurrentUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      const verification = await storage.getIdVerificationByUser(userId);
+      const user = await storage.getUser(userId);
+      
+      res.json({
+        verification,
+        verificationStatus: user?.verificationStatus || "unverified",
+        isVerified: user?.isVerified || false,
+      });
+    } catch (error) {
+      console.error("Get verification status error:", error);
+      res.status(500).json({ message: "Failed to get verification status" });
+    }
+  });
+
+  app.get("/api/admin/verifications", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = await getCurrentUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const verifications = await storage.getAllPendingVerifications();
+      
+      const verificationsWithUsers = await Promise.all(
+        verifications.map(async (v) => {
+          const verificationUser = await storage.getUser(v.userId);
+          return {
+            ...v,
+            user: verificationUser ? {
+              id: verificationUser.id,
+              name: verificationUser.name,
+              email: verificationUser.email,
+              avatar: verificationUser.avatar,
+            } : null,
+          };
+        })
+      );
+
+      res.json(verificationsWithUsers);
+    } catch (error) {
+      console.error("Get pending verifications error:", error);
+      res.status(500).json({ message: "Failed to get pending verifications" });
+    }
+  });
+
+  app.patch("/api/admin/verifications/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = await getCurrentUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { status, notes } = req.body;
+      if (!status || !["approved", "rejected"].includes(status)) {
+        return res.status(400).json({ message: "Valid status (approved/rejected) is required" });
+      }
+
+      const verification = await storage.getIdVerification(req.params.id);
+      if (!verification) {
+        return res.status(404).json({ message: "Verification not found" });
+      }
+
+      const updated = await storage.updateIdVerification(req.params.id, {
+        status,
+        notes: notes || null,
+        reviewerId: userId,
+        reviewedAt: new Date(),
+      });
+
+      if (status === "approved") {
+        await storage.updateUser(verification.userId, {
+          isVerified: true,
+          verificationStatus: "verified",
+        });
+      } else {
+        await storage.updateUser(verification.userId, {
+          verificationStatus: "rejected",
+        });
+      }
+
+      await storage.createNotification({
+        userId: verification.userId,
+        type: "verification",
+        content: status === "approved" 
+          ? "Your college ID has been verified! You now have full access to the marketplace."
+          : `Your verification was rejected. ${notes || "Please submit a clearer image."}`,
+        link: "/profile",
+      });
+
+      wsHub.sendToUser(verification.userId, {
+        type: "notification",
+        data: {
+          type: "verification",
+          status,
+          message: status === "approved" ? "Your ID has been verified!" : "Your verification was rejected.",
+        },
+      });
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Update verification error:", error);
+      res.status(500).json({ message: "Failed to update verification" });
+    }
+  });
+
+  app.post("/api/products/:id/buy", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = await getCurrentUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      const product = await storage.getProduct(req.params.id);
+      if (!product) {
+        return res.status(404).json({ message: "Product not found" });
+      }
+
+      if (product.sellerId === userId) {
+        return res.status(400).json({ message: "Cannot buy your own product" });
+      }
+
+      if (product.status !== "available") {
+        return res.status(400).json({ message: "Product is no longer available" });
+      }
+
+      const { paymentMethod, shippingAddress, meetupLocation, notes } = req.body;
+
+      const order = await storage.createOrder({
+        productId: product.id,
+        buyerId: userId,
+        sellerId: product.sellerId,
+        amount: product.price,
+        paymentMethod: paymentMethod || null,
+        shippingAddress: shippingAddress || null,
+        meetupLocation: meetupLocation || null,
+        notes: notes || null,
+      });
+
+      await storage.updateProduct(product.id, { status: "pending" });
+
+      const buyer = await storage.getUser(userId);
+      await storage.createNotification({
+        userId: product.sellerId,
+        type: "order",
+        content: `${buyer?.name || "Someone"} wants to buy your "${product.title}" for $${product.price}`,
+        link: `/orders`,
+        relatedUserId: userId,
+        relatedProductId: product.id,
+      });
+
+      wsHub.sendToUser(product.sellerId, {
+        type: "notification",
+        data: {
+          type: "new_order",
+          orderId: order.id,
+          productTitle: product.title,
+          buyerName: buyer?.name,
+          amount: product.price,
+        },
+      });
+
+      res.status(201).json(order);
+    } catch (error) {
+      console.error("Create order error:", error);
+      res.status(500).json({ message: "Failed to create order" });
+    }
+  });
+
+  app.get("/api/orders", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = await getCurrentUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      const { type } = req.query;
+
+      let orders;
+      if (type === "selling") {
+        orders = await storage.getOrdersBySeller(userId);
+      } else if (type === "buying") {
+        orders = await storage.getOrdersByBuyer(userId);
+      } else {
+        const buyerOrders = await storage.getOrdersByBuyer(userId);
+        const sellerOrders = await storage.getOrdersBySeller(userId);
+        orders = [...buyerOrders, ...sellerOrders].sort((a, b) => 
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+      }
+
+      const ordersWithDetails = await Promise.all(
+        orders.map(async (order) => {
+          const product = await storage.getProduct(order.productId);
+          const buyer = await storage.getUser(order.buyerId);
+          const seller = await storage.getUser(order.sellerId);
+          return {
+            ...order,
+            product: product ? {
+              id: product.id,
+              title: product.title,
+              images: product.images,
+              category: product.category,
+            } : null,
+            buyer: buyer ? {
+              id: buyer.id,
+              name: buyer.name,
+              avatar: buyer.avatar,
+            } : null,
+            seller: seller ? {
+              id: seller.id,
+              name: seller.name,
+              avatar: seller.avatar,
+            } : null,
+          };
+        })
+      );
+
+      res.json(ordersWithDetails);
+    } catch (error) {
+      console.error("Get orders error:", error);
+      res.status(500).json({ message: "Failed to get orders" });
+    }
+  });
+
+  app.get("/api/orders/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = await getCurrentUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      const order = await storage.getOrder(req.params.id);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      if (order.buyerId !== userId && order.sellerId !== userId) {
+        return res.status(403).json({ message: "Not authorized to view this order" });
+      }
+
+      const product = await storage.getProduct(order.productId);
+      const buyer = await storage.getUser(order.buyerId);
+      const seller = await storage.getUser(order.sellerId);
+
+      res.json({
+        ...order,
+        product,
+        buyer: buyer ? { id: buyer.id, name: buyer.name, avatar: buyer.avatar, email: buyer.email } : null,
+        seller: seller ? { id: seller.id, name: seller.name, avatar: seller.avatar, email: seller.email } : null,
+      });
+    } catch (error) {
+      console.error("Get order error:", error);
+      res.status(500).json({ message: "Failed to get order" });
+    }
+  });
+
+  app.patch("/api/orders/:id/status", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = await getCurrentUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      const order = await storage.getOrder(req.params.id);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      const { status } = req.body;
+      if (!status || !["confirmed", "shipped", "delivered", "cancelled"].includes(status)) {
+        return res.status(400).json({ message: "Valid status is required" });
+      }
+
+      const isSeller = order.sellerId === userId;
+      const isBuyer = order.buyerId === userId;
+
+      if (!isSeller && !isBuyer) {
+        return res.status(403).json({ message: "Not authorized to update this order" });
+      }
+
+      if (status === "confirmed" && !isSeller) {
+        return res.status(403).json({ message: "Only seller can confirm orders" });
+      }
+      if (status === "shipped" && !isSeller) {
+        return res.status(403).json({ message: "Only seller can mark as shipped" });
+      }
+      if (status === "delivered" && !isBuyer) {
+        return res.status(403).json({ message: "Only buyer can confirm delivery" });
+      }
+
+      const updated = await storage.updateOrder(req.params.id, { status });
+
+      const product = await storage.getProduct(order.productId);
+      if (status === "confirmed") {
+        await storage.updateProduct(order.productId, { status: "sold" });
+      } else if (status === "cancelled") {
+        await storage.updateProduct(order.productId, { status: "available" });
+      }
+
+      const notifyUserId = isSeller ? order.buyerId : order.sellerId;
+      const statusMessages: Record<string, string> = {
+        confirmed: `The seller has confirmed your order for "${product?.title}"`,
+        shipped: `Your order "${product?.title}" has been shipped!`,
+        delivered: `The buyer confirmed delivery of "${product?.title}"`,
+        cancelled: `Order for "${product?.title}" has been cancelled`,
+      };
+
+      await storage.createNotification({
+        userId: notifyUserId,
+        type: "order_update",
+        content: statusMessages[status],
+        link: `/orders`,
+        relatedProductId: order.productId,
+      });
+
+      wsHub.sendToUser(notifyUserId, {
+        type: "notification",
+        data: {
+          type: "order_update",
+          orderId: order.id,
+          status,
+          message: statusMessages[status],
+        },
+      });
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Update order status error:", error);
+      res.status(500).json({ message: "Failed to update order status" });
+    }
+  });
+
+  app.get("/api/follows/history", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = await getCurrentUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      const followsData = await storage.getFollowsWithHistory(userId);
+      
+      const followsWithUsers = await Promise.all(
+        followsData.map(async (follow) => {
+          const followingUser = await storage.getUser(follow.followingId);
+          return {
+            ...follow,
+            user: followingUser ? {
+              id: followingUser.id,
+              name: followingUser.name,
+              avatar: followingUser.avatar,
+            } : null,
+          };
+        })
+      );
+
+      res.json(followsWithUsers);
+    } catch (error) {
+      console.error("Get follows with history error:", error);
+      res.status(500).json({ message: "Failed to get follow history" });
+    }
+  });
+
   return httpServer;
 }
