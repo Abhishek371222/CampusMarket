@@ -425,8 +425,26 @@ export function useUploadVerification() {
   });
 }
 
+export type VerificationWithUser = {
+  id: string;
+  userId: string;
+  documentPath: string;
+  documentType: string;
+  status: string;
+  notes: string | null;
+  createdAt: string;
+  reviewerId: string | null;
+  reviewedAt: string | null;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    avatar: string | null;
+  } | null;
+};
+
 export function usePendingVerifications() {
-  return useQuery<IdVerification[]>({
+  return useQuery<VerificationWithUser[]>({
     queryKey: ["/api/admin/verifications"],
   });
 }
