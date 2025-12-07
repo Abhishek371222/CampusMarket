@@ -12,7 +12,7 @@ import { formatDistanceToNow } from "date-fns";
 import NotFound from "./not-found";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useProduct, useProductView, useCreateOffer, useCreateChat, useUserProfile, useFollowUser, useUnfollowUser, useBuyProduct } from "@/lib/api-hooks";
+import { useProduct, useProductView, useCreateOffer, useCreateChat, useUserProfile, useFollowUser, useUnfollowUser, useBuyProduct, useIsFollowing } from "@/lib/api-hooks";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -33,12 +33,10 @@ export default function ProductDetail() {
   const productViewMutation = useProductView(params?.id || "");
   const createOfferMutation = useCreateOffer();
   const createChatMutation = useCreateChat();
-  const followUserMutation = useFollowUser(product?.sellerId || "");
-  const unfollowUserMutation = useUnfollowUser(product?.sellerId || "");
+  const followUserMutation = useFollowUser(product?.sellerId || "", user?.id);
+  const unfollowUserMutation = useUnfollowUser(product?.sellerId || "", user?.id);
   const buyProductMutation = useBuyProduct();
-
-  // Note: isFollowing would need to be fetched from followers/following API
-  const isFollowing = false; // TODO: Implement following check
+  const isFollowing = useIsFollowing(user?.id, product?.sellerId);
 
   useEffect(() => {
     if (params?.id && user) {

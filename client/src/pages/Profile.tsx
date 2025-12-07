@@ -4,13 +4,15 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProductCard } from "@/components/ui/product-card";
 import { useLocation } from "wouter";
-import { LogOut, ShieldCheck, CheckCircle2, Users, Loader2, Pencil, Upload, Clock, XCircle, ShoppingBag } from "lucide-react";
+import { LogOut, ShieldCheck, CheckCircle2, Users, Loader2, Pencil, Upload, Clock, XCircle, ShoppingBag, UserPlus, UserMinus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useProducts, useFollowing, useVerificationStatus, useUploadVerification, useOrders } from "@/lib/api-hooks";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useProducts, useFollowing, useFollowers, useVerificationStatus, useUploadVerification, useOrders } from "@/lib/api-hooks";
 import { useState, useRef } from "react";
 
 export default function Profile() {
@@ -19,11 +21,14 @@ export default function Profile() {
   const { toast } = useToast();
   const { data: products, isLoading: productsLoading } = useProducts();
   const { data: following, isLoading: followingLoading } = useFollowing(user?.id);
+  const { data: followers, isLoading: followersLoading } = useFollowers(user?.id);
   const { data: verification, isLoading: verificationLoading } = useVerificationStatus();
   const { data: orders, isLoading: ordersLoading } = useOrders();
   const uploadVerificationMutation = useUploadVerification();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [followDialogOpen, setFollowDialogOpen] = useState(false);
+  const [followDialogTab, setFollowDialogTab] = useState<"followers" | "following">("followers");
 
   if (!user) {
     setLocation("/login");
@@ -32,6 +37,7 @@ export default function Profile() {
 
   const myListings = products?.filter((p) => p.sellerId === user.id) || [];
   const followingCount = following?.length || 0;
+  const followersCount = followers?.length || 0;
   const myOrders = orders || [];
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -95,10 +101,121 @@ export default function Profile() {
                 Unverified
               </Badge>
             )}
-            <Badge variant="outline" className="text-muted-foreground" data-testid="badge-following">
-               <Users className="h-3 w-3 mr-1" /> 
-               {followingLoading ? "..." : followingCount} Following
-            </Badge>
+            <Dialog open={followDialogOpen} onOpenChange={setFollowDialogOpen}>
+              <DialogTrigger asChild>
+                <Badge 
+                  variant="outline" 
+                  className="text-muted-foreground cursor-pointer" 
+                  data-testid="badge-followers"
+                  onClick={() => { setFollowDialogTab("followers"); setFollowDialogOpen(true); }}
+                >
+                  <UserPlus className="h-3 w-3 mr-1" /> 
+                  {followersLoading ? "..." : followersCount} Followers
+                </Badge>
+              </DialogTrigger>
+              <DialogTrigger asChild>
+                <Badge 
+                  variant="outline" 
+                  className="text-muted-foreground cursor-pointer" 
+                  data-testid="badge-following"
+                  onClick={() => { setFollowDialogTab("following"); setFollowDialogOpen(true); }}
+                >
+                  <Users className="h-3 w-3 mr-1" /> 
+                  {followingLoading ? "..." : followingCount} Following
+                </Badge>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>
+                    {followDialogTab === "followers" ? "Followers" : "Following"}
+                  </DialogTitle>
+                </DialogHeader>
+                <Tabs value={followDialogTab} onValueChange={(v) => setFollowDialogTab(v as "followers" | "following")}>
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="followers" data-testid="tab-followers-dialog">
+                      Followers ({followersCount})
+                    </TabsTrigger>
+                    <TabsTrigger value="following" data-testid="tab-following-dialog">
+                      Following ({followingCount})
+                    </TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="followers" className="mt-4">
+                    <ScrollArea className="h-[300px]">
+                      {followersLoading ? (
+                        <div className="flex justify-center py-8">
+                          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                        </div>
+                      ) : followers && followers.length > 0 ? (
+                        <div className="space-y-3">
+                          {followers.map((follower) => (
+                            <div 
+                              key={follower.id} 
+                              className="flex items-center gap-3 p-2 rounded-lg hover-elevate cursor-pointer"
+                              onClick={() => { setFollowDialogOpen(false); }}
+                              data-testid={`user-follower-${follower.id}`}
+                            >
+                              <Avatar className="h-10 w-10">
+                                <AvatarImage src={follower.avatar || undefined} />
+                                <AvatarFallback>{follower.name[0]}</AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium truncate">{follower.name}</p>
+                                <p className="text-sm text-muted-foreground truncate">{follower.email}</p>
+                              </div>
+                              {follower.isVerified && (
+                                <ShieldCheck className="h-4 w-4 text-green-500 flex-shrink-0" />
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <UserMinus className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                          <p>No followers yet</p>
+                        </div>
+                      )}
+                    </ScrollArea>
+                  </TabsContent>
+                  <TabsContent value="following" className="mt-4">
+                    <ScrollArea className="h-[300px]">
+                      {followingLoading ? (
+                        <div className="flex justify-center py-8">
+                          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                        </div>
+                      ) : following && following.length > 0 ? (
+                        <div className="space-y-3">
+                          {following.map((followedUser) => (
+                            <div 
+                              key={followedUser.id} 
+                              className="flex items-center gap-3 p-2 rounded-lg hover-elevate cursor-pointer"
+                              onClick={() => { setFollowDialogOpen(false); }}
+                              data-testid={`user-following-${followedUser.id}`}
+                            >
+                              <Avatar className="h-10 w-10">
+                                <AvatarImage src={followedUser.avatar || undefined} />
+                                <AvatarFallback>{followedUser.name[0]}</AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium truncate">{followedUser.name}</p>
+                                <p className="text-sm text-muted-foreground truncate">{followedUser.email}</p>
+                              </div>
+                              {followedUser.isVerified && (
+                                <ShieldCheck className="h-4 w-4 text-green-500 flex-shrink-0" />
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                          <p>Not following anyone yet</p>
+                        </div>
+                      )}
+                    </ScrollArea>
+                  </TabsContent>
+                </Tabs>
+              </DialogContent>
+            </Dialog>
           </div>
 
           {verification?.status === "pending" && (

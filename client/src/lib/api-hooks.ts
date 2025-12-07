@@ -304,26 +304,39 @@ export function useFollowing(userId: string | undefined) {
   });
 }
 
-export function useFollowUser(userId: string) {
+export function useIsFollowing(currentUserId: string | undefined, targetUserId: string | undefined) {
+  const { data: following } = useFollowing(currentUserId);
+  return following?.some(user => user.id === targetUserId) || false;
+}
+
+export function useFollowUser(userId: string, currentUserId?: string) {
   return useMutation({
     mutationFn: async () => {
       await apiRequest("POST", `/api/users/${userId}/follow`, {});
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users", userId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users", userId, "followers"] });
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      if (currentUserId) {
+        queryClient.invalidateQueries({ queryKey: ["/api/users", currentUserId, "following"] });
+      }
     },
   });
 }
 
-export function useUnfollowUser(userId: string) {
+export function useUnfollowUser(userId: string, currentUserId?: string) {
   return useMutation({
     mutationFn: async () => {
       await apiRequest("DELETE", `/api/users/${userId}/follow`, {});
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users", userId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users", userId, "followers"] });
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      if (currentUserId) {
+        queryClient.invalidateQueries({ queryKey: ["/api/users", currentUserId, "following"] });
+      }
     },
   });
 }
