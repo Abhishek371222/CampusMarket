@@ -8,15 +8,23 @@ import { useState } from "react";
 import { MessageSquare, Heart, Share2, AlertCircle, Loader2, Trash2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
-import { useCommunityPosts, useCreateCommunityPost, useLikeCommunityPost, useDeleteCommunityPost, useLikeStatus } from "@/lib/api-hooks";
+import { useCommunityPosts, useCreateCommunityPost, useLikeCommunityPost, useDeleteCommunityPost, useLikeStatus, usePostComments, useCreateComment } from "@/lib/api-hooks";
+import { Input } from "@/components/ui/input";
+import { Send } from "lucide-react";
 import type { CommunityPost } from "@shared/schema";
 import { motion, AnimatePresence } from "framer-motion";
 
 function PostCard({ post, currentUserId, index = 0 }: { post: CommunityPost; currentUserId?: string; index?: number }) {
   const { toast } = useToast();
+  const [showComments, setShowComments] = useState(false);
+  const [newComment, setNewComment] = useState("");
+  
   const likePost = useLikeCommunityPost(post.id);
   const deletePost = useDeleteCommunityPost(post.id);
   const { data: likeStatus } = useLikeStatus(post.id);
+  const { data: comments, isLoading: commentsLoading } = usePostComments(showComments ? post.id : undefined);
+  const createComment = useCreateComment(post.id);
+  
   const isLiked = likeStatus?.liked ?? false;
   const isAuthor = currentUserId === post.authorId;
 
@@ -41,6 +49,27 @@ function PostCard({ post, currentUserId, index = 0 }: { post: CommunityPost; cur
     } catch (error) {
       toast({
         title: "Failed to delete post",
+        description: error instanceof Error ? error.message : "Please try again",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSubmitComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newComment.trim()) return;
+    
+    if (!currentUserId) {
+      toast({ title: "Please login to comment", variant: "destructive" });
+      return;
+    }
+
+    try {
+      await createComment.mutateAsync({ content: newComment });
+      setNewComment("");
+    } catch (error) {
+      toast({
+        title: "Failed to add comment",
         description: error instanceof Error ? error.message : "Please try again",
         variant: "destructive",
       });
@@ -103,7 +132,11 @@ function PostCard({ post, currentUserId, index = 0 }: { post: CommunityPost; cur
             )}
             <span data-testid={`text-likes-${post.id}`}>{post.likes}</span>
           </button>
-          <button className="flex items-center gap-2 text-xs hover:text-primary transition-colors">
+          <button 
+            onClick={() => setShowComments(!showComments)}
+            className={`flex items-center gap-2 text-xs transition-colors ${showComments ? "text-primary" : "hover:text-primary"}`}
+            data-testid={`button-comments-${post.id}`}
+          >
             <MessageSquare className="h-4 w-4" /> 
             <span data-testid={`text-comments-${post.id}`}>{post.comments || 0}</span>
           </button>
@@ -123,6 +156,81 @@ function PostCard({ post, currentUserId, index = 0 }: { post: CommunityPost; cur
             </button>
           )}
         </div>
+
+        <AnimatePresence>
+          {showComments && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className="mt-4 pt-4 border-t space-y-4"
+              data-testid={`section-comments-${post.id}`}
+            >
+              <form onSubmit={handleSubmitComment} className="flex gap-2">
+                <Input
+                  placeholder="Write a comment..."
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  className="flex-1"
+                  data-testid={`input-comment-${post.id}`}
+                  disabled={createComment.isPending}
+                />
+                <Button 
+                  type="submit" 
+                  size="icon"
+                  disabled={!newComment.trim() || createComment.isPending}
+                  data-testid={`button-submit-comment-${post.id}`}
+                >
+                  {createComment.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
+                </Button>
+              </form>
+
+              {commentsLoading ? (
+                <div className="flex justify-center py-4">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : comments && comments.length > 0 ? (
+                <div className="space-y-3" data-testid={`list-comments-${post.id}`}>
+                  {comments.map((comment) => (
+                    <div 
+                      key={comment.id} 
+                      className="flex gap-3"
+                      data-testid={`comment-${comment.id}`}
+                    >
+                      <Avatar className="h-7 w-7">
+                        <AvatarFallback className="text-xs">
+                          {comment.authorId.slice(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 bg-muted/50 rounded-md p-2">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <span className="text-xs font-medium" data-testid={`text-comment-author-${comment.id}`}>
+                            User {comment.authorId.slice(0, 8)}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground" data-testid={`text-comment-time-${comment.id}`}>
+                            {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
+                          </span>
+                        </div>
+                        <p className="text-sm" data-testid={`text-comment-content-${comment.id}`}>
+                          {comment.content}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-2" data-testid={`text-no-comments-${post.id}`}>
+                  No comments yet. Be the first to comment!
+                </p>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </CardContent>
     </Card>
     </motion.div>
