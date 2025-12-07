@@ -655,19 +655,94 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/community/:id/like", isAuthenticated, async (req, res) => {
+  app.post("/api/community/:id/like", isAuthenticated, async (req: any, res) => {
     try {
+      const userId = await getCurrentUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
       const post = await storage.getCommunityPost(req.params.id);
       if (!post) {
         return res.status(404).json({ message: "Community post not found" });
       }
 
-      const newLikes = post.likes + 1;
+      const existingLike = await storage.getPostLike(req.params.id, userId);
+      let newLikes: number;
+      let liked: boolean;
+
+      if (existingLike) {
+        await storage.deletePostLike(req.params.id, userId);
+        newLikes = Math.max(0, post.likes - 1);
+        liked = false;
+      } else {
+        await storage.createPostLike(req.params.id, userId);
+        newLikes = post.likes + 1;
+        liked = true;
+      }
+
       await storage.updateCommunityPostLikes(req.params.id, newLikes);
-      res.json({ likes: newLikes });
+      res.json({ likes: newLikes, liked });
     } catch (error) {
       console.error("Like community post error:", error);
       res.status(500).json({ message: "Failed to like community post" });
+    }
+  });
+
+  app.get("/api/community/:id/like-status", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = await getCurrentUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      const existingLike = await storage.getPostLike(req.params.id, userId);
+      res.json({ liked: !!existingLike });
+    } catch (error) {
+      console.error("Get like status error:", error);
+      res.status(500).json({ message: "Failed to get like status" });
+    }
+  });
+
+  app.get("/api/community/:id/comments", async (req, res) => {
+    try {
+      const comments = await storage.getPostComments(req.params.id);
+      res.json(comments);
+    } catch (error) {
+      console.error("Get comments error:", error);
+      res.status(500).json({ message: "Failed to get comments" });
+    }
+  });
+
+  app.post("/api/community/:id/comments", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = await getCurrentUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      const post = await storage.getCommunityPost(req.params.id);
+      if (!post) {
+        return res.status(404).json({ message: "Community post not found" });
+      }
+
+      const validationResult = insertPostCommentSchema.safeParse({
+        ...req.body,
+        postId: req.params.id,
+      });
+
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: fromZodError(validationResult.error).message 
+        });
+      }
+
+      const comment = await storage.createPostComment({
+        ...validationResult.data,
+        authorId: userId,
+      });
+      
+      const newCommentCount = (post.comments || 0) + 1;
+      await storage.updateCommunityPostCommentCount(req.params.id, newCommentCount);
+
+      res.status(201).json(comment);
+    } catch (error) {
+      console.error("Create comment error:", error);
+      res.status(500).json({ message: "Failed to create comment" });
     }
   });
 

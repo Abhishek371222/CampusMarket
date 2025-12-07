@@ -1,6 +1,7 @@
 import { db } from "./db";
 import { products, users, locations } from "@shared/schema";
 import { eq } from "drizzle-orm";
+import bcrypt from "bcryptjs";
 
 const demoProducts = [
   {
@@ -115,5 +116,45 @@ export async function seedDemoProducts() {
     console.log(`Seeded ${demoProducts.reduce((acc, cat) => acc + cat.items.length, 0)} demo products`);
   } catch (error) {
     console.error("Failed to seed demo products:", error);
+  }
+}
+
+export async function seedAdminUser() {
+  try {
+    const adminEmail = "abhishekaj371@gmail.com";
+    const adminPassword = "Blackcobra01@";
+    
+    const existingAdmin = await db.select().from(users).where(eq(users.email, adminEmail));
+    if (existingAdmin.length > 0) {
+      console.log("Admin user already exists, skipping seed");
+      return;
+    }
+
+    let [location] = await db.select().from(locations).limit(1);
+    if (!location) {
+      [location] = await db.insert(locations).values({
+        country: "United States",
+        state: "California",
+        city: "Los Angeles",
+        pincode: "90024",
+      }).returning();
+    }
+
+    const hashedPassword = await bcrypt.hash(adminPassword, 10);
+
+    const [adminUser] = await db.insert(users).values({
+      name: "Admin",
+      email: adminEmail,
+      password: hashedPassword,
+      role: "admin",
+      isVerified: true,
+      verificationStatus: "verified",
+      locationId: location.id,
+    }).returning();
+
+    console.log(`Admin user created with email: ${adminEmail}`);
+    return adminUser;
+  } catch (error) {
+    console.error("Failed to seed admin user:", error);
   }
 }
