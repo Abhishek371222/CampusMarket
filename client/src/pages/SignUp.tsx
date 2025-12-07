@@ -10,8 +10,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/lib/auth";
 import { useLocation, Link } from "wouter";
-import { useState } from "react";
-import { GraduationCap, Loader2, MapPin } from "lucide-react";
+import { useState, useRef } from "react";
+import { GraduationCap, Loader2, MapPin, Upload, X, FileCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const signUpSchema = z.object({
@@ -31,6 +31,8 @@ export default function SignUp() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [studentIdFile, setStudentIdFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<z.infer<typeof signUpSchema>>({
     resolver: zodResolver(signUpSchema),
@@ -51,6 +53,58 @@ export default function SignUp() {
     window.location.href = "/api/login";
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'application/pdf'];
+      if (!allowedTypes.includes(file.type)) {
+        toast({
+          title: "Invalid File Type",
+          description: "Please upload an image (JPEG, PNG, GIF, WebP) or PDF file.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        toast({
+          title: "File Too Large",
+          description: "File size must be less than 10MB.",
+          variant: "destructive",
+        });
+        return;
+      }
+      setStudentIdFile(file);
+    }
+  };
+
+  const removeFile = () => {
+    setStudentIdFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const uploadStudentId = async () => {
+    if (!studentIdFile) return;
+    
+    const formData = new FormData();
+    formData.append("document", studentIdFile);
+    formData.append("documentType", "college_id");
+    
+    const response = await fetch("/api/verification", {
+      method: "POST",
+      credentials: "include",
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || "Failed to upload student ID");
+    }
+    
+    return response.json();
+  };
+
   const onSubmit = async (values: z.infer<typeof signUpSchema>) => {
     setIsLoading(true);
     try {
@@ -62,10 +116,26 @@ export default function SignUp() {
         pincode: values.pincode,
       });
       
-      toast({
-        title: "Account Created!",
-        description: "Welcome to Campus Market!",
-      });
+      if (studentIdFile) {
+        try {
+          await uploadStudentId();
+          toast({
+            title: "Account Created!",
+            description: "Welcome to Campus Market! Your student ID is pending verification.",
+          });
+        } catch (uploadError: any) {
+          toast({
+            title: "Account Created",
+            description: "Your account was created, but we couldn't upload your student ID. You can upload it later from your profile.",
+            variant: "default",
+          });
+        }
+      } else {
+        toast({
+          title: "Account Created!",
+          description: "Welcome to Campus Market!",
+        });
+      }
       
       setLocation("/");
     } catch (error: any) {
@@ -254,6 +324,58 @@ export default function SignUp() {
                       </FormItem>
                     )}
                   />
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <div className="flex items-center gap-2 mb-3 text-sm font-medium">
+                  <FileCheck className="h-4 w-4" />
+                  Student ID Verification (Optional)
+                </div>
+                <div className="rounded-md border p-4 bg-muted/20">
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Upload your student ID card to verify your student status. This helps build trust in our community.
+                  </p>
+                  
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,application/pdf"
+                    onChange={handleFileChange}
+                    className="hidden"
+                    data-testid="input-student-id"
+                  />
+                  
+                  {!studentIdFile ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => fileInputRef.current?.click()}
+                      data-testid="button-upload-id"
+                    >
+                      <Upload className="mr-2 h-4 w-4" />
+                      Choose File
+                    </Button>
+                  ) : (
+                    <div className="flex items-center justify-between gap-2 p-2 bg-background rounded-md border">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <FileCheck className="h-4 w-4 text-green-600 flex-shrink-0" />
+                        <span className="text-sm truncate" data-testid="text-filename">
+                          {studentIdFile.name}
+                        </span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={removeFile}
+                        data-testid="button-remove-file"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
 
