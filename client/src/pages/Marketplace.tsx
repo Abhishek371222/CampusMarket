@@ -7,11 +7,12 @@ import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SearchBar } from "@/components/ui/search-bar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useState, useMemo, useCallback } from "react";
 import { useLocation } from "wouter";
 import { useProducts, useInstitutions, useLocations } from "@/lib/api-hooks";
 import { useAuth } from "@/lib/auth";
-import { Loader2, MapPin, Building2 } from "lucide-react";
+import { Loader2, MapPin, Building2, SlidersHorizontal } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function Marketplace() {
@@ -28,6 +29,7 @@ export default function Marketplace() {
   const [selectedLocationId, setSelectedLocationId] = useState<string>("");
   const [selectedInstitutionId, setSelectedInstitutionId] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState(initialSearch);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
   
   const categories = ["All", "Textbooks", "Electronics", "Furniture", "Clothing", "Other"];
   const allConditions = ["New", "Like New", "Good", "Fair"];
@@ -80,6 +82,171 @@ export default function Marketplace() {
     );
   };
 
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (category !== "All") count++;
+    if (priceRange[0] > 0 || priceRange[1] < 500) count++;
+    if (conditions.length > 0) count++;
+    if (selectedLocationId) count++;
+    if (selectedInstitutionId) count++;
+    return count;
+  }, [category, priceRange, conditions, selectedLocationId, selectedInstitutionId]);
+
+  const clearAllFilters = () => {
+    setCategory("All");
+    setConditions([]);
+    setPriceRange([0, 500]);
+    setSelectedLocationId("");
+    setSelectedInstitutionId("");
+    setSearchTerm("");
+  };
+
+  const FilterContent = () => (
+    <>
+      <div>
+        <h3 className="font-heading font-semibold mb-4">Categories</h3>
+        <div className="space-y-2">
+          {categories.map((cat) => (
+            <Button
+              key={cat}
+              variant={category === cat ? "secondary" : "ghost"}
+              className="w-full justify-start font-normal"
+              onClick={() => setCategory(cat)}
+              data-testid={`button-category-${cat.toLowerCase()}`}
+            >
+              {cat}
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      <Separator />
+
+      <div>
+        <h3 className="font-heading font-semibold mb-4">Price Range</h3>
+        <div className="flex items-center gap-2 mb-4">
+          <div className="relative flex-1">
+            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+            <Input
+              type="number"
+              min={0}
+              max={priceRange[1]}
+              value={priceRange[0]}
+              onChange={(e) => {
+                const val = Math.max(0, Math.min(Number(e.target.value), priceRange[1]));
+                setPriceRange([val, priceRange[1]]);
+              }}
+              className="pl-6 text-sm"
+              data-testid="input-price-min"
+            />
+          </div>
+          <span className="text-muted-foreground">to</span>
+          <div className="relative flex-1">
+            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+            <Input
+              type="number"
+              min={priceRange[0]}
+              max={1000}
+              value={priceRange[1]}
+              onChange={(e) => {
+                const val = Math.max(priceRange[0], Math.min(Number(e.target.value), 1000));
+                setPriceRange([priceRange[0], val]);
+              }}
+              className="pl-6 text-sm"
+              data-testid="input-price-max"
+            />
+          </div>
+        </div>
+        <Slider
+          min={0}
+          max={1000}
+          step={5}
+          value={priceRange}
+          onValueChange={setPriceRange}
+          className="mb-2"
+          data-testid="slider-price-range"
+        />
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span>$0</span>
+          <span>$500</span>
+          <span>$1000</span>
+        </div>
+      </div>
+
+      <Separator />
+
+      <div>
+        <h3 className="font-heading font-semibold mb-4">Condition</h3>
+        <div className="space-y-3">
+          {allConditions.map((cond) => (
+            <div key={cond} className="flex items-center space-x-2">
+              <Checkbox 
+                id={cond} 
+                checked={conditions.includes(cond)}
+                onCheckedChange={() => toggleCondition(cond)}
+                data-testid={`checkbox-condition-${cond.toLowerCase().replace(/\s/g, '-')}`}
+              />
+              <Label htmlFor={cond} className="text-sm font-normal cursor-pointer">
+                {cond}
+              </Label>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <Separator />
+
+      <div>
+        <h3 className="font-heading font-semibold mb-4 flex items-center gap-2">
+          <MapPin className="h-4 w-4" />
+          Location
+        </h3>
+        <Select
+          value={selectedLocationId}
+          onValueChange={(value) => {
+            setSelectedLocationId(value === "all" ? "" : value);
+            setSelectedInstitutionId("");
+          }}
+        >
+          <SelectTrigger data-testid="select-location-filter">
+            <SelectValue placeholder="All locations" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All locations</SelectItem>
+            {uniqueCities.map((loc) => (
+              <SelectItem key={loc.id} value={loc.id}>
+                {loc.city}, {loc.state}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div>
+        <h3 className="font-heading font-semibold mb-4 flex items-center gap-2">
+          <Building2 className="h-4 w-4" />
+          Institution
+        </h3>
+        <Select
+          value={selectedInstitutionId}
+          onValueChange={(value) => setSelectedInstitutionId(value === "all" ? "" : value)}
+        >
+          <SelectTrigger data-testid="select-institution-filter">
+            <SelectValue placeholder="All institutions" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All institutions</SelectItem>
+            {institutions.map((inst) => (
+              <SelectItem key={inst.id} value={inst.id}>
+                {inst.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </>
+  );
+
   if (error) {
     return (
       <div className="container px-4 py-16 text-center">
@@ -89,167 +256,77 @@ export default function Marketplace() {
   }
 
   return (
-    <div className="container px-4 md:px-6 py-8">
-      <div className="flex flex-col md:flex-row gap-8">
+    <div className="container px-4 md:px-6 py-6 md:py-8">
+      <div className="flex flex-col md:flex-row gap-6 md:gap-8">
         
-        {/* Sidebar Filters */}
-        <aside className="w-full md:w-64 space-y-8 flex-shrink-0">
-          <div>
-            <h3 className="font-heading font-semibold mb-4">Categories</h3>
-            <div className="space-y-2">
-              {categories.map((cat) => (
-                <Button
-                  key={cat}
-                  variant={category === cat ? "secondary" : "ghost"}
-                  className="w-full justify-start font-normal"
-                  onClick={() => setCategory(cat)}
-                  data-testid={`button-category-${cat.toLowerCase()}`}
-                >
-                  {cat}
-                </Button>
-              ))}
-            </div>
-          </div>
-
-          <Separator />
-
-          <div>
-            <h3 className="font-heading font-semibold mb-4">Price Range</h3>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="relative flex-1">
-                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
-                <Input
-                  type="number"
-                  min={0}
-                  max={priceRange[1]}
-                  value={priceRange[0]}
-                  onChange={(e) => {
-                    const val = Math.max(0, Math.min(Number(e.target.value), priceRange[1]));
-                    setPriceRange([val, priceRange[1]]);
-                  }}
-                  className="pl-6 text-sm"
-                  data-testid="input-price-min"
-                />
-              </div>
-              <span className="text-muted-foreground">to</span>
-              <div className="relative flex-1">
-                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
-                <Input
-                  type="number"
-                  min={priceRange[0]}
-                  max={1000}
-                  value={priceRange[1]}
-                  onChange={(e) => {
-                    const val = Math.max(priceRange[0], Math.min(Number(e.target.value), 1000));
-                    setPriceRange([priceRange[0], val]);
-                  }}
-                  className="pl-6 text-sm"
-                  data-testid="input-price-max"
-                />
-              </div>
-            </div>
-            <Slider
-              min={0}
-              max={1000}
-              step={5}
-              value={priceRange}
-              onValueChange={setPriceRange}
-              className="mb-2"
-              data-testid="slider-price-range"
-            />
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>$0</span>
-              <span>$500</span>
-              <span>$1000</span>
-            </div>
-          </div>
-
-          <Separator />
-
-          <div>
-            <h3 className="font-heading font-semibold mb-4">Condition</h3>
-            <div className="space-y-3">
-              {allConditions.map((cond) => (
-                <div key={cond} className="flex items-center space-x-2">
-                  <Checkbox 
-                    id={cond} 
-                    checked={conditions.includes(cond)}
-                    onCheckedChange={() => toggleCondition(cond)}
-                    data-testid={`checkbox-condition-${cond.toLowerCase().replace(/\s/g, '-')}`}
-                  />
-                  <Label htmlFor={cond} className="text-sm font-normal cursor-pointer">
-                    {cond}
-                  </Label>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <Separator />
-
-          <div>
-            <h3 className="font-heading font-semibold mb-4 flex items-center gap-2">
-              <MapPin className="h-4 w-4" />
-              Location
-            </h3>
-            <Select
-              value={selectedLocationId}
-              onValueChange={(value) => {
-                setSelectedLocationId(value === "all" ? "" : value);
-                setSelectedInstitutionId("");
-              }}
-            >
-              <SelectTrigger data-testid="select-location-filter">
-                <SelectValue placeholder="All locations" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All locations</SelectItem>
-                {uniqueCities.map((loc) => (
-                  <SelectItem key={loc.id} value={loc.id}>
-                    {loc.city}, {loc.state}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <h3 className="font-heading font-semibold mb-4 flex items-center gap-2">
-              <Building2 className="h-4 w-4" />
-              Institution
-            </h3>
-            <Select
-              value={selectedInstitutionId}
-              onValueChange={(value) => setSelectedInstitutionId(value === "all" ? "" : value)}
-            >
-              <SelectTrigger data-testid="select-institution-filter">
-                <SelectValue placeholder="All institutions" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All institutions</SelectItem>
-                {institutions.map((inst) => (
-                  <SelectItem key={inst.id} value={inst.id}>
-                    {inst.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        {/* Desktop Sidebar Filters */}
+        <aside className="hidden md:block w-64 space-y-6 flex-shrink-0">
+          <FilterContent />
         </aside>
 
         {/* Main Content */}
         <div className="flex-1">
           <div className="mb-6 space-y-4">
-            <h1 className="text-3xl font-heading font-bold">
-              {category === "All" ? "All Listings" : category}
-            </h1>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+              <h1 className="text-2xl sm:text-3xl font-heading font-bold flex-1">
+                {category === "All" ? "All Listings" : category}
+              </h1>
+              
+              {/* Mobile Filter Button */}
+              <Sheet open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+                <SheetTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    className="md:hidden gap-2 self-start"
+                    data-testid="button-mobile-filters"
+                  >
+                    <SlidersHorizontal className="h-4 w-4" />
+                    Filters
+                    {activeFilterCount > 0 && (
+                      <span className="ml-1 bg-primary text-primary-foreground rounded-full px-2 py-0.5 text-xs">
+                        {activeFilterCount}
+                      </span>
+                    )}
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="w-[300px] overflow-y-auto">
+                  <SheetHeader className="pb-4">
+                    <SheetTitle className="flex items-center justify-between gap-2">
+                      Filters
+                      {activeFilterCount > 0 && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={clearAllFilters}
+                          className="text-muted-foreground"
+                        >
+                          Clear all
+                        </Button>
+                      )}
+                    </SheetTitle>
+                  </SheetHeader>
+                  <div className="space-y-6 pb-6">
+                    <FilterContent />
+                  </div>
+                  <div className="sticky bottom-0 pt-4 bg-background border-t">
+                    <Button 
+                      className="w-full" 
+                      onClick={() => setIsFilterOpen(false)}
+                    >
+                      Show {filteredProducts.length} results
+                    </Button>
+                  </div>
+                </SheetContent>
+              </Sheet>
+            </div>
+            
             <SearchBar 
               initialValue={initialSearch} 
-              className="max-w-xl" 
+              className="w-full max-w-xl" 
               onSearch={handleSearch}
               debounceMs={300}
             />
-            <p className="text-muted-foreground" data-testid="text-results-count">
+            <p className="text-muted-foreground text-sm" data-testid="text-results-count">
               Showing {filteredProducts.length} results
             </p>
           </div>
@@ -307,14 +384,7 @@ export default function Marketplace() {
               >
                 <Button 
                   variant="outline" 
-                  onClick={() => {
-                    setCategory("All");
-                    setConditions([]);
-                    setPriceRange([0, 500]);
-                    setSelectedLocationId("");
-                    setSelectedInstitutionId("");
-                    setSearchTerm("");
-                  }}
+                  onClick={clearAllFilters}
                   data-testid="button-clear-filters"
                 >
                   Clear Filters

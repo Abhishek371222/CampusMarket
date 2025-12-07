@@ -5,13 +5,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useState, useEffect, useRef } from "react";
-import { Send, Mail, Loader2 } from "lucide-react";
+import { Send, Mail, Loader2, ArrowLeft } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 
 export default function Messages() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   
   // Get active chat from URL
   const searchParams = new URLSearchParams(window.location.search);
@@ -19,6 +21,10 @@ export default function Messages() {
   
   const [inputText, setInputText] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+  
+  const handleBackToList = () => {
+    setLocation("/messages");
+  };
 
   // Fetch chats and messages
   const { data: chats, isLoading: chatsLoading } = useChats();
@@ -62,12 +68,12 @@ export default function Messages() {
   };
 
   return (
-    <div className="container h-[calc(100vh-4rem)] md:h-[calc(100vh-8rem)] py-6">
-      <div className="grid md:grid-cols-[300px_1fr] h-full gap-6 bg-card rounded-xl border overflow-hidden shadow-sm">
+    <div className="container h-[calc(100vh-4rem)] py-4 md:py-6 px-3 md:px-6">
+      <div className="grid md:grid-cols-[280px_1fr] h-full bg-card rounded-xl border overflow-hidden shadow-sm">
         
-        {/* Chat List */}
-        <div className="border-r flex flex-col bg-muted/10">
-          <div className="p-4 border-b font-heading font-semibold text-lg">
+        {/* Chat List - Hidden on mobile when a chat is selected */}
+        <div className={`border-r flex flex-col bg-muted/10 ${activeChatId ? 'hidden md:flex' : 'flex'}`}>
+          <div className="p-3 md:p-4 border-b font-heading font-semibold text-base md:text-lg">
             Messages
           </div>
           <ScrollArea className="flex-1">
@@ -82,10 +88,10 @@ export default function Messages() {
                   const isActive = chat.id === activeChatId;
 
                   return (
-                    <a 
+                    <button 
                       key={chat.id} 
-                      href={`/messages?chat=${chat.id}`}
-                      className={`p-4 flex items-start gap-3 hover-elevate transition-colors border-b ${isActive ? "bg-muted/50" : ""}`}
+                      onClick={() => setLocation(`/messages?chat=${chat.id}`)}
+                      className={`p-4 flex items-start gap-3 hover-elevate transition-colors border-b text-left w-full ${isActive ? "bg-muted/50" : ""}`}
                       data-testid={`chat-item-${chat.id}`}
                     >
                       <Avatar>
@@ -110,7 +116,7 @@ export default function Messages() {
                           {chat.lastMessage || "No messages yet"}
                         </p>
                       </div>
-                    </a>
+                    </button>
                   );
                 })}
               </div>
@@ -122,26 +128,33 @@ export default function Messages() {
           </ScrollArea>
         </div>
 
-        {/* Chat Area */}
+        {/* Chat Area - Shows on mobile only when a chat is selected */}
         {activeChat ? (
-          <div className="flex flex-col h-full">
+          <div className={`flex flex-col h-full ${activeChatId ? 'flex' : 'hidden md:flex'}`}>
             {/* Header */}
-            <div className="p-4 border-b flex items-center justify-between bg-background">
-              <div className="flex items-center gap-3">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src="" />
-                  <AvatarFallback>?</AvatarFallback>
-                </Avatar>
-                <div>
-                  <span className="font-semibold block leading-none" data-testid="text-chat-participant">
-                    User {getOtherParticipantId(activeChat.id)?.substring(0, 8)}
+            <div className="p-3 md:p-4 border-b flex items-center gap-2 md:gap-3 bg-background">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="md:hidden flex-shrink-0"
+                onClick={handleBackToList}
+                data-testid="button-back-to-chats"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <Avatar className="h-8 w-8 flex-shrink-0">
+                <AvatarImage src="" />
+                <AvatarFallback>?</AvatarFallback>
+              </Avatar>
+              <div className="min-w-0 flex-1">
+                <span className="font-semibold block leading-none text-sm md:text-base truncate" data-testid="text-chat-participant">
+                  User {getOtherParticipantId(activeChat.id)?.substring(0, 8)}
+                </span>
+                {activeChat.productId && (
+                  <span className="text-xs text-muted-foreground truncate block">
+                    RE: Product {activeChat.productId.substring(0, 8)}
                   </span>
-                  {activeChat.productId && (
-                    <span className="text-xs text-muted-foreground">
-                      Regarding: Product {activeChat.productId.substring(0, 8)}
-                    </span>
-                  )}
-                </div>
+                )}
               </div>
             </div>
 
@@ -174,13 +187,13 @@ export default function Messages() {
             </div>
 
             {/* Input */}
-            <div className="p-4 border-t bg-background">
+            <div className="p-3 md:p-4 border-t bg-background">
               <form onSubmit={handleSend} className="flex gap-2">
                 <Input 
                   value={inputText} 
                   onChange={(e) => setInputText(e.target.value)}
                   placeholder="Type a message..." 
-                  className="flex-1"
+                  className="flex-1 text-sm md:text-base"
                   disabled={sendMessageMutation.isPending}
                   data-testid="input-message"
                 />
@@ -200,7 +213,7 @@ export default function Messages() {
             </div>
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+          <div className="hidden md:flex flex-col items-center justify-center h-full text-muted-foreground">
             <Mail className="h-12 w-12 mb-4 opacity-20" />
             <p data-testid="text-select-chat">Select a conversation to start chatting</p>
           </div>
