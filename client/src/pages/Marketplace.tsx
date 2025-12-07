@@ -104,18 +104,52 @@ export default function Marketplace() {
 
           <div>
             <h3 className="font-heading font-semibold mb-4">Price Range</h3>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="relative flex-1">
+                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                <Input
+                  type="number"
+                  min={0}
+                  max={priceRange[1]}
+                  value={priceRange[0]}
+                  onChange={(e) => {
+                    const val = Math.max(0, Math.min(Number(e.target.value), priceRange[1]));
+                    setPriceRange([val, priceRange[1]]);
+                  }}
+                  className="pl-6 text-sm"
+                  data-testid="input-price-min"
+                />
+              </div>
+              <span className="text-muted-foreground">to</span>
+              <div className="relative flex-1">
+                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                <Input
+                  type="number"
+                  min={priceRange[0]}
+                  max={1000}
+                  value={priceRange[1]}
+                  onChange={(e) => {
+                    const val = Math.max(priceRange[0], Math.min(Number(e.target.value), 1000));
+                    setPriceRange([priceRange[0], val]);
+                  }}
+                  className="pl-6 text-sm"
+                  data-testid="input-price-max"
+                />
+              </div>
+            </div>
             <Slider
-              defaultValue={[0, 500]}
+              min={0}
               max={1000}
-              step={10}
+              step={5}
               value={priceRange}
               onValueChange={setPriceRange}
-              className="mb-4"
+              className="mb-2"
               data-testid="slider-price-range"
             />
-            <div className="flex items-center justify-between text-sm text-muted-foreground">
-              <span data-testid="text-price-min">${priceRange[0]}</span>
-              <span data-testid="text-price-max">${priceRange[1]}+</span>
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>$0</span>
+              <span>$500</span>
+              <span>$1000</span>
             </div>
           </div>
 
