@@ -12,6 +12,7 @@ const demoProducts = [
       { title: "Dell 27\" 4K Monitor", description: "Dell UltraSharp 27\" 4K USB-C monitor. Perfect for dual monitor setup. Adjustable stand included.", price: "299.00", condition: "good", images: ["https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=800"] },
       { title: "Mechanical Keyboard - Cherry MX", description: "Ducky One 2 RGB keyboard with Cherry MX Brown switches. Perfect for programming. RGB lighting.", price: "85.00", condition: "good", images: ["https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=800"] },
       { title: "Nintendo Switch OLED", description: "Nintendo Switch OLED model with 3 games included. Perfect for breaks between classes. Rarely used.", price: "275.00", condition: "like-new", images: ["https://images.unsplash.com/photo-1578303512597-81e6cc155b3e?w=800"] },
+      { title: "AirPods Pro 2nd Gen", description: "Apple AirPods Pro with MagSafe charging case. Active noise cancellation. Used for 3 months.", price: "175.00", condition: "like-new", images: ["https://images.unsplash.com/photo-1600294037681-c80b4cb5b434?w=800"] },
     ],
   },
   {
@@ -23,17 +24,18 @@ const demoProducts = [
       { title: "Psychology: A Concise Introduction", description: "Griggs Psychology textbook. Perfect condition, never used. Bought wrong edition.", price: "35.00", condition: "like-new", images: ["https://images.unsplash.com/photo-1519682337058-a94d519337bc?w=800"] },
       { title: "Physics for Scientists and Engineers", description: "Serway & Jewett Physics textbook. Covers mechanics, thermodynamics, and waves. For PHYS 101/102.", price: "50.00", condition: "good", images: ["https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=800"] },
       { title: "Macroeconomics Bundle - 3 Books", description: "Mankiw Macroeconomics, Microeconomics, and Principles of Economics. All in good condition.", price: "75.00", condition: "good", images: ["https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=800"] },
+      { title: "Data Structures in Java", description: "Complete guide to data structures using Java. Perfect for CS 201. Minimal highlighting.", price: "40.00", condition: "good", images: ["https://images.unsplash.com/photo-1589998059171-988d887df646?w=800"] },
     ],
   },
   {
-    category: "Furniture",
+    category: "Class Notes",
     items: [
-      { title: "IKEA BEKANT Standing Desk", description: "Electric sit-stand desk 63x31\". White top with black legs. Adjustable height. Moving out sale.", price: "175.00", condition: "good", images: ["https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=800"] },
-      { title: "Herman Miller Aeron Chair", description: "Size B Aeron chair. Amazing lumbar support. Perfect for long study sessions. Minor wear.", price: "450.00", condition: "good", images: ["https://images.unsplash.com/photo-1580480055273-228ff5388ef8?w=800"] },
-      { title: "Bookshelf - 5 Tier Wood", description: "Solid wood bookshelf. 5 tiers, holds textbooks and decor. Easy to assemble/disassemble.", price: "45.00", condition: "good", images: ["https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=800"] },
-      { title: "Twin XL Mattress + Frame", description: "Memory foam mattress with metal bed frame. Used for one semester. Very comfortable.", price: "120.00", condition: "good", images: ["https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=800"] },
-      { title: "Study Desk Lamp - LED", description: "TaoTronics LED desk lamp with USB charging port. Multiple brightness levels. Eye-care technology.", price: "25.00", condition: "like-new", images: ["https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?w=800"] },
-      { title: "Dorm Mini Fridge", description: "3.2 cubic feet mini fridge. Perfect for dorm room. Has small freezer compartment.", price: "65.00", condition: "good", images: ["https://images.unsplash.com/photo-1571175443880-49e1d25b2bc5?w=800"] },
+      { title: "CHEM 101 Complete Notes Bundle", description: "Full semester of handwritten notes for General Chemistry. Includes diagrams, practice problems, and exam prep materials. Got an A in this class!", price: "25.00", condition: "like-new", images: ["https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=800"] },
+      { title: "ECON 200 Lecture Notes + Study Guides", description: "Typed notes from all lectures plus study guides for midterm and final. Professor Smith's section.", price: "20.00", condition: "like-new", images: ["https://images.unsplash.com/photo-1517842645767-c639042777db?w=800"] },
+      { title: "Biology 110 Lab Reports Bundle", description: "Complete set of lab reports with high grades. Great reference for writing your own reports.", price: "15.00", condition: "good", images: ["https://images.unsplash.com/photo-1532619675605-1ede6c2ed2b0?w=800"] },
+      { title: "CS 301 Algorithm Notes + Solutions", description: "Comprehensive notes covering all algorithm topics. Includes solved practice problems and Big O cheat sheet.", price: "30.00", condition: "like-new", images: ["https://images.unsplash.com/photo-1488190211105-8b0e65b80b4e?w=800"] },
+      { title: "Calculus III Complete Study Package", description: "Notes, practice exams, and solutions for Multivariable Calculus. Very detailed with graphs and examples.", price: "35.00", condition: "like-new", images: ["https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=800"] },
+      { title: "History 201 Essay Examples + Notes", description: "A-grade essays and comprehensive lecture notes. American History survey course.", price: "18.00", condition: "good", images: ["https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=800"] },
     ],
   },
   {
