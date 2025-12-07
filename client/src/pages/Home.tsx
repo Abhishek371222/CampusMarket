@@ -31,14 +31,11 @@ export default function Home() {
           <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent" />
         </div>
         
-        {/* Floating 3D Elements */}
+        {/* Floating Decorative Elements - lightweight */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-20 left-[10%] w-16 h-16 bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl opacity-60 animate-float shadow-lg" style={{ animationDelay: '0s' }} />
-          <div className="absolute top-32 right-[15%] w-12 h-12 bg-gradient-to-br from-purple-400 to-purple-600 rounded-full opacity-50 animate-float-slow shadow-lg" style={{ animationDelay: '1s' }} />
-          <div className="absolute bottom-32 left-[20%] w-10 h-10 bg-gradient-to-br from-orange-400 to-orange-600 rounded-lg opacity-40 animate-float shadow-lg" style={{ animationDelay: '2s' }} />
-          <div className="absolute top-40 left-[30%] w-8 h-8 bg-gradient-to-br from-pink-400 to-pink-600 rounded-full opacity-50 animate-float-slow shadow-lg" style={{ animationDelay: '0.5s' }} />
-          <div className="absolute bottom-40 right-[25%] w-14 h-14 bg-gradient-to-br from-green-400 to-green-600 rounded-xl opacity-45 animate-float shadow-lg" style={{ animationDelay: '1.5s' }} />
-          <div className="absolute top-24 right-[35%] w-6 h-6 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-lg opacity-55 animate-bounce-slow shadow-lg" style={{ animationDelay: '2.5s' }} />
+          <div className="absolute top-20 left-[10%] w-12 h-12 bg-primary/30 rounded-xl opacity-60 animate-float" style={{ animationDelay: '0s' }} />
+          <div className="absolute top-32 right-[15%] w-10 h-10 bg-secondary/40 rounded-full opacity-50 animate-float-slow" style={{ animationDelay: '1s' }} />
+          <div className="absolute bottom-40 right-[25%] w-8 h-8 bg-accent/30 rounded-lg opacity-45 animate-float" style={{ animationDelay: '1.5s' }} />
         </div>
         
         <div className="container relative z-10 px-4 md:px-6 text-center max-w-3xl mx-auto">
@@ -87,13 +84,7 @@ export default function Home() {
           
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-6">
             {featuredProducts.map((product, index) => (
-              <div 
-                key={product.id} 
-                className="animate-in fade-in slide-in-from-bottom-4 duration-500"
-                style={{ animationDelay: `${index * 50}ms` }}
-              >
-                <ProductCard product={product} />
-              </div>
+              <ProductCard key={product.id} product={product} index={index} />
             ))}
           </div>
         </div>

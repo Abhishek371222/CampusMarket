@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useProducts, useFollowing, useFollowers, useVerificationStatus, useUploadVerification, useOrders } from "@/lib/api-hooks";
 import { useState, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function Profile() {
   const { user, logout } = useAuth();
@@ -71,18 +72,33 @@ export default function Profile() {
   return (
     <div className="container px-4 md:px-6 py-8">
       {/* Profile Header */}
-      <div className="flex flex-col md:flex-row items-center md:items-start gap-8 mb-12">
-        <div className="relative">
+      <motion.div 
+        className="flex flex-col md:flex-row items-center md:items-start gap-8 mb-12"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
+      >
+        <motion.div 
+          className="relative"
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
+        >
            <Avatar className="h-24 w-24 md:h-32 md:w-32 border-4 border-background shadow-xl">
             <AvatarImage src={user.avatar || undefined} alt={user.name} />
             <AvatarFallback className="text-4xl">{user.name[0]}</AvatarFallback>
           </Avatar>
           {user.isVerified && (
-            <div className="absolute bottom-0 right-0 bg-background rounded-full p-1 shadow-sm">
+            <motion.div 
+              className="absolute bottom-0 right-0 bg-background rounded-full p-1 shadow-sm"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.3, type: "spring", stiffness: 300 }}
+            >
               <CheckCircle2 className="h-6 w-6 text-green-500 fill-white" />
-            </div>
+            </motion.div>
           )}
-        </div>
+        </motion.div>
         
         <div className="text-center md:text-left space-y-3 flex-1">
           <div>
@@ -235,15 +251,20 @@ export default function Profile() {
           )}
         </div>
 
-        <div className="flex flex-col gap-2 w-full md:w-auto">
+        <motion.div 
+          className="flex flex-col gap-2 w-full md:w-auto"
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.4, delay: 0.2 }}
+        >
           <Button onClick={() => setLocation("/profile/edit")} data-testid="button-edit-profile">
             <Pencil className="h-4 w-4 mr-2" /> Edit Profile
           </Button>
           <Button variant="outline" onClick={() => logout()} data-testid="button-logout">
             <LogOut className="h-4 w-4 mr-2" /> Sign Out
           </Button>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
 
       {/* Content Tabs */}
       <Tabs defaultValue="listings" className="w-full">
@@ -277,13 +298,17 @@ export default function Profile() {
         
         <TabsContent value="listings" className="mt-6">
           {productsLoading ? (
-            <div className="flex justify-center py-12">
+            <motion.div 
+              className="flex justify-center py-12"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+            >
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
+            </motion.div>
           ) : myListings.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {myListings.map((product) => (
-                <ProductCard key={product.id} product={product} />
+              {myListings.map((product, index) => (
+                <ProductCard key={product.id} product={product} index={index} />
               ))}
             </div>
           ) : (

@@ -12,6 +12,7 @@ import { useLocation } from "wouter";
 import { useProducts, useInstitutions, useLocations } from "@/lib/api-hooks";
 import { useAuth } from "@/lib/auth";
 import { Loader2, MapPin, Building2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function Marketplace() {
   const [routeLocation] = useLocation();
@@ -205,32 +206,70 @@ export default function Marketplace() {
 
           {isLoading ? (
             <div className="flex items-center justify-center py-20">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </motion.div>
             </div>
           ) : filteredProducts.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredProducts.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
+            <motion.div 
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.3 }}
+            >
+              <AnimatePresence mode="popLayout">
+                {filteredProducts.map((product, index) => (
+                  <ProductCard key={product.id} product={product} index={index} />
+                ))}
+              </AnimatePresence>
+            </motion.div>
           ) : (
-            <div className="flex flex-col items-center justify-center py-20 text-center border-2 border-dashed rounded-xl">
-              <p className="text-lg font-medium mb-2">No items found</p>
-              <p className="text-muted-foreground mb-6">Try adjusting your filters or search terms.</p>
-              <Button 
-                variant="outline" 
-                onClick={() => {
-                  setCategory("All");
-                  setConditions([]);
-                  setPriceRange([0, 500]);
-                  setSelectedLocationId("");
-                  setSelectedInstitutionId("");
-                }}
-                data-testid="button-clear-filters"
+            <motion.div 
+              className="flex flex-col items-center justify-center py-20 text-center border-2 border-dashed rounded-xl"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+            >
+              <motion.p 
+                className="text-lg font-medium mb-2"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.1 }}
               >
-                Clear Filters
-              </Button>
-            </div>
+                No items found
+              </motion.p>
+              <motion.p 
+                className="text-muted-foreground mb-6"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.2 }}
+              >
+                Try adjusting your filters or search terms.
+              </motion.p>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.3 }}
+              >
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setCategory("All");
+                    setConditions([]);
+                    setPriceRange([0, 500]);
+                    setSelectedLocationId("");
+                    setSelectedInstitutionId("");
+                  }}
+                  data-testid="button-clear-filters"
+                >
+                  Clear Filters
+                </Button>
+              </motion.div>
+            </motion.div>
           )}
         </div>
       </div>

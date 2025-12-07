@@ -10,8 +10,9 @@ import { formatDistanceToNow } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useCommunityPosts, useCreateCommunityPost, useLikeCommunityPost, useDeleteCommunityPost } from "@/lib/api-hooks";
 import type { CommunityPost } from "@shared/schema";
+import { motion, AnimatePresence } from "framer-motion";
 
-function PostCard({ post, currentUserId }: { post: CommunityPost; currentUserId?: string }) {
+function PostCard({ post, currentUserId, index = 0 }: { post: CommunityPost; currentUserId?: string; index?: number }) {
   const { toast } = useToast();
   const likePost = useLikeCommunityPost(post.id);
   const deletePost = useDeleteCommunityPost(post.id);
@@ -45,7 +46,17 @@ function PostCard({ post, currentUserId }: { post: CommunityPost; currentUserId?
   };
 
   return (
-    <Card data-testid={`card-post-${post.id}`}>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      transition={{ 
+        duration: 0.35, 
+        delay: index * 0.05,
+        ease: [0.25, 0.46, 0.45, 0.94]
+      }}
+    >
+    <Card data-testid={`card-post-${post.id}`} className="overflow-visible">
       <CardHeader className="flex flex-row items-start gap-4 space-y-0 pb-2">
         <Avatar>
           <AvatarFallback>{post.authorId.slice(0, 2).toUpperCase()}</AvatarFallback>
@@ -112,6 +123,7 @@ function PostCard({ post, currentUserId }: { post: CommunityPost; currentUserId?
         </div>
       </CardContent>
     </Card>
+    </motion.div>
   );
 }
 
@@ -222,20 +234,33 @@ export default function CommunityWall() {
 
           {/* Posts Feed */}
           {isLoading ? (
-            <div className="flex justify-center items-center py-12" data-testid="loading-posts">
+            <motion.div 
+              className="flex justify-center items-center py-12" 
+              data-testid="loading-posts"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+            >
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
+            </motion.div>
           ) : !communityPosts || communityPosts.length === 0 ? (
-            <Card className="p-8 text-center">
-              <p className="text-muted-foreground" data-testid="text-no-posts">
-                No posts yet. Be the first to share something!
-              </p>
-            </Card>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+            >
+              <Card className="p-8 text-center">
+                <p className="text-muted-foreground" data-testid="text-no-posts">
+                  No posts yet. Be the first to share something!
+                </p>
+              </Card>
+            </motion.div>
           ) : (
             <div className="space-y-4">
-              {communityPosts.map((post) => (
-                <PostCard key={post.id} post={post} currentUserId={user?.id} />
-              ))}
+              <AnimatePresence mode="popLayout">
+                {communityPosts.map((post, index) => (
+                  <PostCard key={post.id} post={post} currentUserId={user?.id} index={index} />
+                ))}
+              </AnimatePresence>
             </div>
           )}
         </div>
