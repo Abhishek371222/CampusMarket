@@ -8,7 +8,7 @@ import { useState } from "react";
 import { MessageSquare, Heart, Share2, AlertCircle, Loader2, Trash2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
-import { useCommunityPosts, useCreateCommunityPost, useLikeCommunityPost, useDeleteCommunityPost } from "@/lib/api-hooks";
+import { useCommunityPosts, useCreateCommunityPost, useLikeCommunityPost, useDeleteCommunityPost, useLikeStatus } from "@/lib/api-hooks";
 import type { CommunityPost } from "@shared/schema";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -16,6 +16,8 @@ function PostCard({ post, currentUserId, index = 0 }: { post: CommunityPost; cur
   const { toast } = useToast();
   const likePost = useLikeCommunityPost(post.id);
   const deletePost = useDeleteCommunityPost(post.id);
+  const { data: likeStatus } = useLikeStatus(post.id);
+  const isLiked = likeStatus?.liked ?? false;
   const isAuthor = currentUserId === post.authorId;
 
   const handleLike = async () => {
@@ -91,13 +93,13 @@ function PostCard({ post, currentUserId, index = 0 }: { post: CommunityPost; cur
           <button 
             onClick={handleLike}
             disabled={likePost.isPending}
-            className="flex items-center gap-2 text-xs hover:text-primary transition-colors disabled:opacity-50"
+            className={`flex items-center gap-2 text-xs transition-colors disabled:opacity-50 ${isLiked ? "text-red-500" : "hover:text-primary"}`}
             data-testid={`button-like-${post.id}`}
           >
             {likePost.isPending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Heart className="h-4 w-4" />
+              <Heart className="h-4 w-4" fill={isLiked ? "currentColor" : "none"} />
             )}
             <span data-testid={`text-likes-${post.id}`}>{post.likes}</span>
           </button>

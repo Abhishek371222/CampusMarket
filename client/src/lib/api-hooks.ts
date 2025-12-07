@@ -210,6 +210,7 @@ export function useLikeCommunityPost(id: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/community"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/community", id, "like-status"] });
     },
   });
 }
@@ -220,6 +221,43 @@ export function useDeleteCommunityPost(id: string) {
       await apiRequest("DELETE", `/api/community/${id}`, {});
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/community"] });
+    },
+  });
+}
+
+export function useLikeStatus(postId: string | undefined) {
+  return useQuery<{ liked: boolean }>({
+    queryKey: ["/api/community", postId, "like-status"],
+    enabled: !!postId,
+    queryFn: async () => {
+      const res = await fetch(`/api/community/${postId}/like-status`, { credentials: "include" });
+      if (!res.ok) return { liked: false };
+      return res.json();
+    },
+  });
+}
+
+export function usePostComments(postId: string | undefined) {
+  return useQuery<{ id: string; postId: string; authorId: string; content: string; createdAt: string }[]>({
+    queryKey: ["/api/community", postId, "comments"],
+    enabled: !!postId,
+    queryFn: async () => {
+      const res = await fetch(`/api/community/${postId}/comments`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+}
+
+export function useCreateComment(postId: string) {
+  return useMutation({
+    mutationFn: async (data: { content: string }) => {
+      const res = await apiRequest("POST", `/api/community/${postId}/comments`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/community", postId, "comments"] });
       queryClient.invalidateQueries({ queryKey: ["/api/community"] });
     },
   });
