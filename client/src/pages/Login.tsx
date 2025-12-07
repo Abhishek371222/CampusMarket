@@ -24,8 +24,12 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
     try {
-      await login(email, password);
-      setLocation("/");
+      const user = await login(email, password);
+      if (user.role === "admin") {
+        setLocation("/admin");
+      } else {
+        setLocation("/");
+      }
     } catch (error: any) {
       toast({
         title: "Login Failed",

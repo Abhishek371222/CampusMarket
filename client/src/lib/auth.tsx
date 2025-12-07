@@ -5,7 +5,7 @@ import type { User } from "@shared/schema";
 
 type AuthContextType = {
   user: User | null | undefined;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
   logout: () => Promise<void>;
   signup: (name: string, email: string, password: string, location?: { country: string; state: string; city: string; pincode: string }) => Promise<void>;
   isLoading: boolean;
@@ -59,8 +59,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
   });
 
-  const login = async (email: string, password: string) => {
-    await loginMutation.mutateAsync({ email, password });
+  const login = async (email: string, password: string): Promise<User> => {
+    const user = await loginMutation.mutateAsync({ email, password });
+    return user as User;
   };
 
   const signup = async (name: string, email: string, password: string, location?: { country: string; state: string; city: string; pincode: string }) => {
