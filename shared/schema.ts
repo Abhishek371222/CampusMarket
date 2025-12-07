@@ -339,6 +339,12 @@ export type InsertProduct = z.infer<typeof insertProductSchema>;
 export type Chat = typeof chats.$inferSelect;
 export type ChatParticipant = typeof chatParticipants.$inferSelect;
 
+export type EnrichedChat = Chat & {
+  participants: string[];
+  lastMessage: string | null;
+  lastMessageTime: string;
+};
+
 export type Message = typeof messages.$inferSelect;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
 

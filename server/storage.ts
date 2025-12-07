@@ -50,6 +50,7 @@ import {
   type InsertIdVerification,
   type Order,
   type InsertOrder,
+  type EnrichedChat,
 } from "@shared/schema";
 
 export interface UpsertUserData {
@@ -95,7 +96,7 @@ export interface IStorage {
 
   createChat(productId: string | null, participantIds: string[]): Promise<Chat>;
   getChat(id: string): Promise<Chat | undefined>;
-  getChatsByUser(userId: string): Promise<Chat[]>;
+  getChatsByUser(userId: string): Promise<EnrichedChat[]>;
   addChatParticipant(chatId: string, userId: string): Promise<ChatParticipant>;
   getChatParticipants(chatId: string): Promise<ChatParticipant[]>;
 
@@ -384,7 +385,7 @@ export class DatabaseStorage implements IStorage {
     return chat;
   }
 
-  async getChatsByUser(userId: string): Promise<Chat[]> {
+  async getChatsByUser(userId: string): Promise<EnrichedChat[]> {
     const participations = await db.select({ chatId: chatParticipants.chatId })
       .from(chatParticipants)
       .where(eq(chatParticipants.userId, userId));
@@ -392,7 +393,40 @@ export class DatabaseStorage implements IStorage {
     if (participations.length === 0) return [];
     
     const chatIds = participations.map(p => p.chatId);
-    return db.select().from(chats).where(inArray(chats.id, chatIds));
+    const chatRecords = await db.select().from(chats).where(inArray(chats.id, chatIds));
+    
+    const enrichedChats = await Promise.all(
+      chatRecords.map(async (chat) => {
+        const participants = await db.select({ userId: chatParticipants.userId })
+          .from(chatParticipants)
+          .where(eq(chatParticipants.chatId, chat.id));
+        
+        const lastMessages = await db.select()
+          .from(messages)
+          .where(eq(messages.chatId, chat.id))
+          .orderBy(desc(messages.createdAt))
+          .limit(1);
+        
+        const lastMsg = lastMessages[0];
+        const lastMessageTime = lastMsg?.createdAt ?? chat.createdAt;
+        const lastMessageTimestamp = lastMessageTime.getTime();
+        
+        return {
+          ...chat,
+          participants: participants.map(p => p.userId),
+          lastMessage: lastMsg?.content ?? null,
+          lastMessageTime: lastMessageTime.toISOString(),
+          _sortTime: lastMessageTimestamp,
+        };
+      })
+    );
+    
+    enrichedChats.sort((a, b) => b._sortTime - a._sortTime);
+    
+    return enrichedChats.map((item) => {
+      const { _sortTime, ...chat } = item;
+      return chat;
+    });
   }
 
   async addChatParticipant(chatId: string, userId: string): Promise<ChatParticipant> {

@@ -107,7 +107,7 @@ export default function Messages() {
                           </p>
                         )}
                         <p className="text-xs text-muted-foreground truncate mt-1" data-testid={`text-last-message-${chat.id}`}>
-                          {chat.lastMessage}
+                          {chat.lastMessage || "No messages yet"}
                         </p>
                       </div>
                     </a>

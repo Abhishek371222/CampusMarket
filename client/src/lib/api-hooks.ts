@@ -4,6 +4,7 @@ import type {
   Product, 
   InsertProduct,
   Chat,
+  EnrichedChat,
   Message,
   InsertMessage,
   CommunityPost,
@@ -121,7 +122,7 @@ export function useProductView(id: string) {
 
 // Chats & Messages Hooks
 export function useChats() {
-  return useQuery<Chat[]>({
+  return useQuery<EnrichedChat[]>({
     queryKey: ["/api/chats"],
   });
 }
