@@ -7,7 +7,7 @@ import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SearchBar } from "@/components/ui/search-bar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useLocation } from "wouter";
 import { useProducts, useInstitutions, useLocations } from "@/lib/api-hooks";
 import { useAuth } from "@/lib/auth";
@@ -27,6 +27,7 @@ export default function Marketplace() {
   const [conditions, setConditions] = useState<string[]>([]);
   const [selectedLocationId, setSelectedLocationId] = useState<string>("");
   const [selectedInstitutionId, setSelectedInstitutionId] = useState<string>("");
+  const [searchTerm, setSearchTerm] = useState(initialSearch);
   
   const categories = ["All", "Textbooks", "Electronics", "Furniture", "Clothing", "Other"];
   const allConditions = ["New", "Like New", "Good", "Fair"];
@@ -36,11 +37,14 @@ export default function Marketplace() {
   const { data: institutions = [] } = useInstitutions(selectedLocationId || undefined);
 
   const { data: products = [], isLoading, error } = useProducts({
-    search: initialSearch,
     category: category !== "All" ? category : undefined,
     locationId: selectedLocationId || undefined,
     institutionId: selectedInstitutionId || undefined,
   });
+
+  const handleSearch = useCallback((value: string) => {
+    setSearchTerm(value);
+  }, []);
 
   const uniqueCities = useMemo(() => {
     const cityMap = new Map<string, typeof locations[number]>();
@@ -54,14 +58,21 @@ export default function Marketplace() {
   }, [locations]);
 
   const filteredProducts = useMemo(() => {
+    const searchLower = searchTerm.toLowerCase().trim();
+    
     return products.filter((p) => {
       const price = parseFloat(p.price);
       const matchesPrice = price >= priceRange[0] && price <= priceRange[1];
       const matchesCondition = conditions.length === 0 || conditions.includes(p.condition);
       
-      return matchesPrice && matchesCondition;
+      const matchesSearch = !searchLower || 
+        p.title.toLowerCase().includes(searchLower) ||
+        p.description.toLowerCase().includes(searchLower) ||
+        p.category.toLowerCase().includes(searchLower);
+      
+      return matchesPrice && matchesCondition && matchesSearch;
     });
-  }, [products, priceRange, conditions]);
+  }, [products, priceRange, conditions, searchTerm]);
 
   const toggleCondition = (cond: string) => {
     setConditions(prev => 
@@ -232,7 +243,12 @@ export default function Marketplace() {
             <h1 className="text-3xl font-heading font-bold">
               {category === "All" ? "All Listings" : category}
             </h1>
-            <SearchBar initialValue={initialSearch} className="max-w-xl" />
+            <SearchBar 
+              initialValue={initialSearch} 
+              className="max-w-xl" 
+              onSearch={handleSearch}
+              debounceMs={300}
+            />
             <p className="text-muted-foreground" data-testid="text-results-count">
               Showing {filteredProducts.length} results
             </p>
@@ -297,6 +313,7 @@ export default function Marketplace() {
                     setPriceRange([0, 500]);
                     setSelectedLocationId("");
                     setSelectedInstitutionId("");
+                    setSearchTerm("");
                   }}
                   data-testid="button-clear-filters"
                 >
