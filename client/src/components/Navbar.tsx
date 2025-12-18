@@ -124,9 +124,22 @@ export function Navbar() {
                     <Link href="/" onClick={() => setIsMobileMenuOpen(false)} className="text-lg font-medium">
                       Browse Products
                     </Link>
-                    <Link href="/sell" onClick={() => setIsMobileMenuOpen(false)} className="text-lg font-medium">
-                      Sell an Item
+                    <Link href="/sell" onClick={() => setIsMobileMenuOpen(false)} className="text-lg font-medium flex items-center gap-2">
+                      ✨ Sell Item
                     </Link>
+                    <Link href="/search" onClick={() => setIsMobileMenuOpen(false)} className="text-lg font-medium">
+                      Search
+                    </Link>
+                    {isAuthenticated && (
+                      <>
+                        <Link href="/profile" onClick={() => setIsMobileMenuOpen(false)} className="text-lg font-medium">
+                          Profile
+                        </Link>
+                        <Link href="/orders" onClick={() => setIsMobileMenuOpen(false)} className="text-lg font-medium">
+                          My Orders
+                        </Link>
+                      </>
+                    )}
                     {!isAuthenticated && (
                       <>
                         <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>

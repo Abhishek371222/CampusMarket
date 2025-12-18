@@ -8,10 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import clsx from "clsx";
+import { useLocation } from "wouter";
 
 export default function HomePage() {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [, setLocation] = useLocation();
   const { data: products, isLoading } = useProducts(selectedCategory);
 
   const filteredProducts = products?.filter(p => 
@@ -53,9 +55,22 @@ export default function HomePage() {
                   className="pl-10 h-12 text-base rounded-xl bg-white shadow-sm border-gray-200 focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && searchQuery.trim()) {
+                      setLocation(`/search?q=${encodeURIComponent(searchQuery)}`);
+                    }
+                  }}
                 />
               </div>
-              <Button size="lg" className="h-12 rounded-xl px-8 font-semibold shadow-lg shadow-primary/25">
+              <Button 
+                onClick={() => {
+                  if (searchQuery.trim()) {
+                    setLocation(`/search?q=${encodeURIComponent(searchQuery)}`);
+                  }
+                }}
+                size="lg" 
+                className="h-12 rounded-xl px-8 font-semibold shadow-lg shadow-primary/25"
+              >
                 Search
               </Button>
             </motion.div>

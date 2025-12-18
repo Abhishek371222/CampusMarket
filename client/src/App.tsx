@@ -14,7 +14,9 @@ import CheckoutPage from "@/pages/CheckoutPage";
 import LoginPage from "@/pages/LoginPage";
 import SignupPage from "@/pages/SignupPage";
 import OrdersPage from "@/pages/OrdersPage";
+import ProfilePage from "@/pages/ProfilePage";
 import SellItemPage from "@/pages/SellItemPage";
+import SearchPage from "@/pages/SearchPage";
 import AboutPage from "@/pages/AboutPage";
 import ContactPage from "@/pages/ContactPage";
 import TermsPage from "@/pages/TermsPage";
@@ -29,7 +31,9 @@ function Router() {
       <Route path="/checkout" component={CheckoutPage} />
       <Route path="/login" component={LoginPage} />
       <Route path="/signup" component={SignupPage} />
+      <Route path="/profile" component={ProfilePage} />
       <Route path="/sell" component={SellItemPage} />
+      <Route path="/search" component={SearchPage} />
       <Route path="/orders" component={OrdersPage} />
       <Route path="/about" component={AboutPage} />
       <Route path="/contact" component={ContactPage} />
