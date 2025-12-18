@@ -1,0 +1,122 @@
+1. VISUAL POLISH & DESIGN SYSTEM
+--------------------------------------------------
+
+- Introduce a consistent design system:
+  - Primary, secondary, accent colors
+  - Neutral shades
+- Improve typography:
+  - Clear heading hierarchy
+  - Better spacing and line height
+- Increase visual depth using:
+  - Soft shadows
+  - Glassmorphism
+  - Gradient accents (subtle, not flashy)
+
+--------------------------------------------------
+2. ANIMATIONS & MICRO-INTERACTIONS
+--------------------------------------------------
+
+Use Framer Motion or Tailwind animations to add:
+
+- Page transitions (fade + slide)
+- Hover animations on:
+  - Product cards
+  - Buttons
+  - Navigation links
+- Button press feedback
+- Smooth modal open/close
+- Card lift effect on hover
+
+Animations must be subtle and professional.
+
+--------------------------------------------------
+3. 3D & PREMIUM FEEL (LIGHTWEIGHT)
+--------------------------------------------------
+
+- Enhance login/signup pages with:
+  - Perspective-based card tilt
+  - Gradient glow on focus
+- Add depth to product cards using layered shadows
+- Optional:
+  - Slight parallax in hero section
+  - Floating UI elements (very subtle)
+
+--------------------------------------------------
+4. UX IMPROVEMENTS
+--------------------------------------------------
+
+- Add skeleton loaders for:
+  - Product listings
+  - Product detail pages
+- Improve empty states:
+  - Cart empty
+  - Orders empty
+- Add toast notifications:
+  - Added to cart
+  - Order placed
+- Improve form UX:
+  - Focus states
+  - Inline validation feedback
+
+--------------------------------------------------
+5. RESPONSIVENESS & MOBILE UX
+--------------------------------------------------
+
+- Optimize layouts for:
+  - Small phones
+  - Tablets
+  - Large screens
+- Improve touch targets
+- Smooth mobile menu animations
+- Sticky bottom CTA for mobile (Add to Cart / Buy Now)
+
+--------------------------------------------------
+6. ACCESSIBILITY
+--------------------------------------------------
+
+- Improve contrast where needed
+- Add aria-labels to buttons
+- Ensure keyboard navigation works
+- Improve focus rings
+
+--------------------------------------------------
+7. PERFORMANCE & CLEANUP
+--------------------------------------------------
+
+- Remove unnecessary re-renders
+- Optimize images (Next/Image)
+- Improve component reuse
+- Clean up Tailwind classes where possible
+
+--------------------------------------------------
+8. TRUST & PRODUCT FEEL
+--------------------------------------------------
+
+Add subtle trust-building elements:
+- Verified seller badges (mock)
+- Secure checkout indicators
+- Ratings micro-animations
+- Order success celebration animation
+
+--------------------------------------------------
+IMPORTANT RULES
+--------------------------------------------------
+
+- Do NOT add backend
+- Do NOT add authentication logic
+- Do NOT change routing
+- Do NOT remove any existing features
+- Keep everything frontend-only
+- Enhance, don’t replace
+
+--------------------------------------------------
+OUTPUT EXPECTATION
+--------------------------------------------------
+
+Return:
+- Updated components with enhancements
+- New small UI utility components if needed
+- Improved styling and animations
+- A more premium, interview-ready frontend
+
+The result should feel like a startup-quality product demo.
