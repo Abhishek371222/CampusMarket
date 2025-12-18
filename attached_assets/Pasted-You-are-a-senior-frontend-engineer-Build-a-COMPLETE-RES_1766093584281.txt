@@ -1,0 +1,216 @@
+You are a senior frontend engineer.
+
+Build a COMPLETE, RESPONSIVE, FRONTEND-ONLY e-commerce web application called "Campus Market" using:
+
+- Next.js 14 (App Router)
+- React
+- TypeScript
+- Tailwind CSS
+- Modern component-based architecture
+
+IMPORTANT CONSTRAINTS:
+- Frontend ONLY (NO backend, NO database, NO API calls)
+- Use STATIC / MOCK DATA everywhere
+- Every button, link, and CTA must navigate to a real page
+- No dead buttons, no placeholders
+- App must look modern, trustworthy, and slightly premium
+- Design should feel like a real startup product used by college students
+
+--------------------------------------------------
+CORE REQUIREMENTS
+--------------------------------------------------
+
+1. GLOBAL LAYOUT
+- Sticky responsive navbar with:
+  - Logo (Campus Market)
+  - Links: Home, Categories, Sell Item, Orders, Profile
+  - Login / Sign Up buttons
+- Mobile-friendly hamburger menu
+- Footer with:
+  - About
+  - Contact
+  - Terms
+  - Social links (mock)
+
+--------------------------------------------------
+2. AUTH PAGES (3D LOOK)
+--------------------------------------------------
+
+Create visually impressive 3D-style authentication pages using gradients, shadows, glassmorphism, and depth.
+
+Pages:
+- /login
+- /signup
+
+Features:
+- Floating card with depth (shadow-xl, perspective feel)
+- Smooth hover animations
+- Input fields with icons
+- Demo validation (frontend only)
+- Buttons navigate to Home after login/signup
+- Background with subtle gradient + soft blur
+- Add "Continue as Guest" option
+
+--------------------------------------------------
+3. HOME PAGE
+--------------------------------------------------
+
+- Hero section:
+  - Headline: "Buy & Sell Within Your Campus"
+  - Subtext: Trusted marketplace for students
+  - CTA buttons: "Browse Products" and "Sell an Item"
+- Featured categories (cards):
+  - Electronics
+  - Books
+  - Hostel Essentials
+  - Cycles
+  - Fashion
+- Featured products grid (mock data)
+
+--------------------------------------------------
+4. PRODUCT LISTING PAGE
+--------------------------------------------------
+
+Route: /products
+
+- Grid layout (responsive)
+- Each product card includes:
+  - Image
+  - Title
+  - Price
+  - Condition (New / Used)
+  - Seller rating (mock stars)
+  - "View Details" button
+- Clicking a product opens product detail page
+
+Include at least 12 DEMO PRODUCTS with realistic names, prices, images (use Unsplash placeholders).
+
+--------------------------------------------------
+5. PRODUCT DETAIL PAGE
+--------------------------------------------------
+
+Route: /products/[id]
+
+- Large product image gallery
+- Product title, price, description
+- Seller info card:
+  - Name
+  - Rating
+  - Campus name
+- Buttons:
+  - Add to Cart
+  - Buy Now
+- Clicking buttons navigates to Checkout page
+
+--------------------------------------------------
+6. CART PAGE
+--------------------------------------------------
+
+Route: /cart
+
+- List added demo products
+- Quantity selector (frontend state only)
+- Price breakdown:
+  - Subtotal
+  - Platform fee
+  - Total
+- Button: Proceed to Checkout
+
+--------------------------------------------------
+7. CHECKOUT FLOW (MULTI-PAGE)
+--------------------------------------------------
+
+Route: /checkout
+
+Steps:
+1. Address Page
+   - Name, hostel, room number, phone
+2. Order Summary Page
+3. Payment Page
+   - Mock payment options:
+     - UPI
+     - Card
+     - Cash on Delivery
+4. Success Page
+   - Order placed animation
+   - Order ID (mock)
+   - Button: Go to Orders
+
+--------------------------------------------------
+8. ORDERS PAGE
+--------------------------------------------------
+
+Route: /orders
+
+- List of previous demo orders
+- Order status:
+  - Processing
+  - Shipped
+  - Delivered
+- Clicking an order opens Order Detail page
+
+--------------------------------------------------
+9. PROFILE PAGE
+--------------------------------------------------
+
+Route: /profile
+
+- User info card
+- Campus name
+- Stats:
+  - Items sold
+  - Items bought
+- Buttons:
+  - Edit Profile (frontend modal)
+  - Logout (redirects to login)
+
+--------------------------------------------------
+10. SELL ITEM PAGE
+--------------------------------------------------
+
+Route: /sell
+
+- Form with:
+  - Product name
+  - Category
+  - Price
+  - Condition
+  - Description
+- Image upload UI (mock only)
+- Submit button redirects to Products page
+
+--------------------------------------------------
+11. DESIGN & UX
+--------------------------------------------------
+
+- Use Tailwind animations
+- Hover effects on cards
+- Smooth page transitions
+- Skeleton loaders (mock)
+- Clean typography
+- Soft shadows & rounded corners
+- Fully responsive (mobile, tablet, desktop)
+
+--------------------------------------------------
+12. CODE QUALITY
+--------------------------------------------------
+
+- Proper folder structure (app/, components/, data/)
+- Reusable components
+- Type-safe mock data
+- Clean, readable code
+- No TODOs or placeholders
+
+--------------------------------------------------
+OUTPUT EXPECTATION
+--------------------------------------------------
+
+Generate:
+- Complete Next.js App Router frontend
+- All pages implemented
+- Mock data file(s)
+- Ready-to-run project
+- No backend references
+- No broken navigation
+
+This should feel like a REAL Campus Marketplace product demo that I can show in interviews.
