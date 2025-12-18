@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { Product, User } from '@shared/schema';
-import { CURRENT_USER } from './mockData';
+import { CURRENT_USER, MOCK_PRODUCTS } from './mockData';
 
 interface CartItem extends Product {
   quantity: number;
@@ -63,38 +63,105 @@ interface SignupData {
   confirmPassword: string;
 }
 
+interface UserProfile extends User {
+  email?: string;
+  phone?: string;
+  bio?: string;
+}
+
 interface AuthState {
-  user: User | null;
+  user: UserProfile | null;
   login: (username: string) => Promise<void>;
   signup: (data: SignupData) => Promise<void>;
+  updateProfile: (data: Partial<UserProfile>) => void;
   logout: () => void;
   isAuthenticated: boolean;
 }
 
-export const useAuth = create<AuthState>((set) => ({
-  user: null,
-  isAuthenticated: false,
-  login: async (username) => {
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    // For demo, we just log them in as the mock user if they type anything
-    if (username) {
-      set({ user: CURRENT_USER, isAuthenticated: true });
+export const useAuth = create<AuthState>()(
+  persist(
+    (set) => ({
+      user: null,
+      isAuthenticated: false,
+      login: async (username) => {
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        if (username) {
+          set({ user: { ...CURRENT_USER, email: "alex@university.edu", phone: "+1 (555) 123-4567", bio: "Love buying and selling on campus!" }, isAuthenticated: true });
+        }
+      },
+      signup: async (data: SignupData) => {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        const newUser: UserProfile = {
+          id: Math.floor(Math.random() * 1000) + 100,
+          username: data.username,
+          password: data.password,
+          name: data.name,
+          campus: data.campus || "Main Campus",
+          avatar: `https://images.unsplash.com/photo-${Math.floor(Math.random() * 1000)}-profile?w=100&h=100&fit=crop`,
+          email: data.email,
+          phone: data.phone,
+          bio: "Welcome to Campus Market!"
+        };
+        set({ user: newUser, isAuthenticated: true });
+      },
+      updateProfile: (data) => {
+        set((state) => ({
+          user: state.user ? { ...state.user, ...data } : null
+        }));
+      },
+      logout: () => set({ user: null, isAuthenticated: false }),
+    }),
+    {
+      name: 'campus-auth-storage',
     }
-  },
-  signup: async (data: SignupData) => {
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    // Create new user from signup data
-    const newUser: User = {
-      id: Math.floor(Math.random() * 1000) + 100,
-      username: data.username,
-      password: data.password,
-      name: data.name,
-      campus: data.campus || "Main Campus",
-      avatar: `https://images.unsplash.com/photo-${Math.floor(Math.random() * 1000)}-profile?w=100&h=100&fit=crop`,
-    };
-    set({ user: newUser, isAuthenticated: true });
-  },
-  logout: () => set({ user: null, isAuthenticated: false }),
-}));
+  )
+);
+
+interface FavoritesState {
+  favorites: number[];
+  addFavorite: (productId: number) => void;
+  removeFavorite: (productId: number) => void;
+  isFavorite: (productId: number) => boolean;
+}
+
+export const useFavorites = create<FavoritesState>()(
+  persist(
+    (set, get) => ({
+      favorites: [],
+      addFavorite: (productId) => {
+        const current = get().favorites;
+        if (!current.includes(productId)) {
+          set({ favorites: [...current, productId] });
+        }
+      },
+      removeFavorite: (productId) => {
+        set({ favorites: get().favorites.filter(id => id !== productId) });
+      },
+      isFavorite: (productId) => {
+        return get().favorites.includes(productId);
+      }
+    }),
+    {
+      name: 'campus-favorites-storage',
+    }
+  )
+);
+
+interface UserListingsState {
+  listings: Product[];
+  addListing: (product: Product) => void;
+}
+
+export const useUserListings = create<UserListingsState>()(
+  persist(
+    (set, get) => ({
+      listings: [MOCK_PRODUCTS[3], MOCK_PRODUCTS[9]],
+      addListing: (product) => {
+        set({ listings: [...get().listings, { ...product, id: Date.now() }] });
+      }
+    }),
+    {
+      name: 'campus-listings-storage',
+    }
+  )
+);

@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useAuth } from "@/lib/store";
-import { useLocation } from "wouter";
+import { useAuth, useUserListings, useFavorites } from "@/lib/store";
+import { useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,21 +9,23 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Upload, Mail, Phone, MapPin, Star, Heart, DollarSign, Edit2, Save, X } from "lucide-react";
+import { Upload, Mail, Phone, MapPin, Star, Heart, DollarSign, Edit2, Save, X, Package } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 
 export default function ProfilePage() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, updateProfile } = useAuth();
+  const { listings } = useUserListings();
+  const { favorites } = useFavorites();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     name: user?.name || "",
     campus: user?.campus || "",
-    email: "alex@university.edu",
-    phone: "+1 (555) 123-4567",
-    bio: "Love buying and selling textbooks and electronics on campus!",
+    email: user?.email || "alex@university.edu",
+    phone: user?.phone || "+1 (555) 123-4567",
+    bio: user?.bio || "Love buying and selling on campus!",
     avatar: user?.avatar || "",
   });
 
@@ -38,6 +40,14 @@ export default function ProfilePage() {
   };
 
   const handleSave = async () => {
+    updateProfile({
+      name: formData.name,
+      campus: formData.campus,
+      email: formData.email,
+      phone: formData.phone,
+      bio: formData.bio,
+      avatar: formData.avatar,
+    });
     toast({
       title: "Profile updated!",
       description: "Your changes have been saved."
@@ -278,18 +288,24 @@ export default function ProfilePage() {
             <Card className="p-6 border-primary/20 bg-white/50 backdrop-blur">
               <h3 className="font-bold mb-4">Quick Actions</h3>
               <div className="space-y-2">
-                <Button variant="outline" className="w-full justify-start rounded-lg">
-                  <DollarSign className="w-4 h-4 mr-2" />
-                  My Listings
-                </Button>
-                <Button variant="outline" className="w-full justify-start rounded-lg">
-                  <Heart className="w-4 h-4 mr-2" />
-                  Saved Items
-                </Button>
-                <Button variant="outline" className="w-full justify-start rounded-lg">
-                  <Star className="w-4 h-4 mr-2" />
-                  Reviews
-                </Button>
+                <Link href="/my-listings">
+                  <Button variant="outline" className="w-full justify-start rounded-lg">
+                    <Package className="w-4 h-4 mr-2" />
+                    My Listings ({listings.length})
+                  </Button>
+                </Link>
+                <Link href="/saved-items">
+                  <Button variant="outline" className="w-full justify-start rounded-lg">
+                    <Heart className="w-4 h-4 mr-2" />
+                    Saved Items ({favorites.length})
+                  </Button>
+                </Link>
+                <Link href="/reviews">
+                  <Button variant="outline" className="w-full justify-start rounded-lg">
+                    <Star className="w-4 h-4 mr-2" />
+                    Reviews
+                  </Button>
+                </Link>
               </div>
             </Card>
 

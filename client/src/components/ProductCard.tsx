@@ -2,10 +2,11 @@ import { Product } from "@shared/schema";
 import { Link } from "wouter";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useCart } from "@/lib/store";
-import { ShoppingCart, Star } from "lucide-react";
+import { useCart, useFavorites } from "@/lib/store";
+import { ShoppingCart, Star, Heart, Share2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import { useState } from "react";
 
 interface ProductCardProps {
   product: Product;
@@ -13,7 +14,9 @@ interface ProductCardProps {
 
 export function ProductCard({ product }: ProductCardProps) {
   const addItem = useCart((state) => state.addItem);
+  const { addFavorite, removeFavorite, isFavorite } = useFavorites();
   const { toast } = useToast();
+  const [isFav, setIsFav] = useState(isFavorite(product.id));
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -24,6 +27,33 @@ export function ProductCard({ product }: ProductCardProps) {
     });
   };
 
+  const handleToggleFavorite = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (isFav) {
+      removeFavorite(product.id);
+      setIsFav(false);
+      toast({ description: "Removed from saved items" });
+    } else {
+      addFavorite(product.id);
+      setIsFav(true);
+      toast({ description: "Added to saved items" });
+    }
+  };
+
+  const handleShare = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const shareText = `Check out this ${product.condition} ${product.title} on Campus Market for $${product.price}!`;
+    if (navigator.share) {
+      navigator.share({
+        title: product.title,
+        text: shareText,
+      });
+    } else {
+      navigator.clipboard.writeText(shareText);
+      toast({ description: "Share text copied to clipboard!" });
+    }
+  };
+
   return (
     <Link href={`/products/${product.id}`} className="block h-full group">
       <Card className="h-full overflow-hidden border-border/50 bg-card transition-all duration-300 hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1 hover:border-primary/20 rounded-2xl">
@@ -31,6 +61,27 @@ export function ProductCard({ product }: ProductCardProps) {
           <Badge className="absolute top-3 left-3 z-10 bg-white/90 text-foreground backdrop-blur-md hover:bg-white border-0 shadow-sm font-medium px-2.5 py-1">
             {product.condition}
           </Badge>
+          
+          {/* Like and Share buttons */}
+          <div className="absolute top-3 right-3 z-10 flex gap-2">
+            <Button
+              onClick={handleToggleFavorite}
+              size="icon"
+              variant="secondary"
+              className="rounded-full shadow-sm backdrop-blur-md bg-white/80 hover:bg-white h-9 w-9"
+            >
+              <Heart className={`w-4 h-4 ${isFav ? 'fill-accent text-accent' : ''}`} />
+            </Button>
+            <Button
+              onClick={handleShare}
+              size="icon"
+              variant="secondary"
+              className="rounded-full shadow-sm backdrop-blur-md bg-white/80 hover:bg-white h-9 w-9"
+            >
+              <Share2 className="w-4 h-4" />
+            </Button>
+          </div>
+
           <img
             src={product.image}
             alt={product.title}

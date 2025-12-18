@@ -15,10 +15,10 @@ export function Footer() {
           <div>
             <h4 className="font-semibold mb-4">Shop</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><Link href="/" className="hover:text-primary transition-colors">All Products</Link></li>
-              <li><Link href="/" className="hover:text-primary transition-colors">Electronics</Link></li>
-              <li><Link href="/" className="hover:text-primary transition-colors">Textbooks</Link></li>
-              <li><Link href="/" className="hover:text-primary transition-colors">Furniture</Link></li>
+              <li><Link href="/?category=all" className="hover:text-primary transition-colors">All Products</Link></li>
+              <li><Link href="/?category=electronics" className="hover:text-primary transition-colors">Electronics</Link></li>
+              <li><Link href="/?category=books" className="hover:text-primary transition-colors">Textbooks</Link></li>
+              <li><Link href="/?category=hostel" className="hover:text-primary transition-colors">Hostel Essentials</Link></li>
             </ul>
           </div>
           

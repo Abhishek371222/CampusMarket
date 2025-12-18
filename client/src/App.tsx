@@ -17,6 +17,9 @@ import OrdersPage from "@/pages/OrdersPage";
 import ProfilePage from "@/pages/ProfilePage";
 import SellItemPage from "@/pages/SellItemPage";
 import SearchPage from "@/pages/SearchPage";
+import MyListingsPage from "@/pages/MyListingsPage";
+import SavedItemsPage from "@/pages/SavedItemsPage";
+import ReviewsPage from "@/pages/ReviewsPage";
 import AboutPage from "@/pages/AboutPage";
 import ContactPage from "@/pages/ContactPage";
 import TermsPage from "@/pages/TermsPage";
@@ -34,6 +37,9 @@ function Router() {
       <Route path="/profile" component={ProfilePage} />
       <Route path="/sell" component={SellItemPage} />
       <Route path="/search" component={SearchPage} />
+      <Route path="/my-listings" component={MyListingsPage} />
+      <Route path="/saved-items" component={SavedItemsPage} />
+      <Route path="/reviews" component={ReviewsPage} />
       <Route path="/orders" component={OrdersPage} />
       <Route path="/about" component={AboutPage} />
       <Route path="/contact" component={ContactPage} />
