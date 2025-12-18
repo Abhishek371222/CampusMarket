@@ -12,7 +12,12 @@ import ProductDetailsPage from "@/pages/ProductDetailsPage";
 import CartPage from "@/pages/CartPage";
 import CheckoutPage from "@/pages/CheckoutPage";
 import LoginPage from "@/pages/LoginPage";
+import SignupPage from "@/pages/SignupPage";
 import OrdersPage from "@/pages/OrdersPage";
+import SellItemPage from "@/pages/SellItemPage";
+import AboutPage from "@/pages/AboutPage";
+import ContactPage from "@/pages/ContactPage";
+import TermsPage from "@/pages/TermsPage";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -23,7 +28,12 @@ function Router() {
       <Route path="/cart" component={CartPage} />
       <Route path="/checkout" component={CheckoutPage} />
       <Route path="/login" component={LoginPage} />
+      <Route path="/signup" component={SignupPage} />
+      <Route path="/sell" component={SellItemPage} />
       <Route path="/orders" component={OrdersPage} />
+      <Route path="/about" component={AboutPage} />
+      <Route path="/contact" component={ContactPage} />
+      <Route path="/terms" component={TermsPage} />
       {/* Fallback */}
       <Route component={NotFound} />
     </Switch>
@@ -39,8 +49,8 @@ function App() {
           {/* We conditinally render Navbar based on route if needed, but for simplicity wrapping everything */}
           <Route>
             {(params) => {
-              // Hide Navbar/Footer on login page for cleaner look
-              const isAuthPage = window.location.pathname === '/login' || window.location.pathname === '/signup';
+              // Hide Navbar/Footer on auth pages for cleaner look
+              const isAuthPage = ['/login', '/signup'].includes(window.location.pathname);
               return !isAuthPage && <Navbar />;
             }}
           </Route>
@@ -51,7 +61,7 @@ function App() {
           
           <Route>
             {(params) => {
-              const isAuthPage = window.location.pathname === '/login' || window.location.pathname === '/signup';
+              const isAuthPage = ['/login', '/signup'].includes(window.location.pathname);
               return !isAuthPage && <Footer />;
             }}
           </Route>

@@ -41,8 +41,8 @@ export function Navbar() {
               <Link href="/" className={isActive("/") ? "text-primary" : "text-muted-foreground hover:text-foreground transition-colors"}>
                 Browse
               </Link>
-              <Link href="/sell" className={isActive("/sell") ? "text-primary" : "text-muted-foreground hover:text-foreground transition-colors"}>
-                Sell Item
+              <Link href="/sell" className={isActive("/sell") ? "text-primary bg-accent/10 px-3 py-1 rounded-full" : "text-muted-foreground hover:text-foreground transition-colors"}>
+                ✨ Sell Item
               </Link>
             </div>
           </div>

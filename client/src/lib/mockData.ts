@@ -180,11 +180,71 @@ export const MOCK_PRODUCTS: Product[] = [
   },
 ];
 
+export const MOCK_REVIEWS = [
+  {
+    orderId: 101,
+    rating: 5,
+    title: "Perfect condition!",
+    content: "Exactly as described. Great seller, would buy again!",
+    author: "Alex Johnson",
+    createdAt: new Date("2023-10-20T14:00:00Z")
+  },
+  {
+    orderId: 101,
+    rating: 4,
+    title: "Good value",
+    content: "Book was in great condition. Minor wear on spine.",
+    author: "Sarah Chen",
+    createdAt: new Date("2023-10-21T10:00:00Z")
+  }
+];
+
+export const MOCK_INVOICES = {
+  101: {
+    orderId: 101,
+    invoiceNumber: "INV-2023-10-001",
+    date: new Date("2023-10-15T10:00:00Z"),
+    items: [
+      { title: "Calculus: Early Transcendentals", quantity: 1, price: 45.00, subtotal: 45.00 }
+    ],
+    subtotal: 45.00,
+    platformFee: 2.25,
+    tax: 0,
+    total: 47.25,
+    seller: "Mike Ross",
+    sellerEmail: "mike.ross@university.edu",
+    buyerName: "Alex Johnson",
+    buyerEmail: "alex@university.edu",
+    shippingAddress: "Room 301, North Dormitory, University Campus",
+    status: "Delivered",
+    trackingNumber: "PKG-2023-10-001"
+  },
+  102: {
+    orderId: 102,
+    invoiceNumber: "INV-2023-10-002",
+    date: new Date(),
+    items: [
+      { title: "Road Bike Helmet", quantity: 1, price: 20.00, subtotal: 20.00 }
+    ],
+    subtotal: 20.00,
+    platformFee: 1.00,
+    tax: 0,
+    total: 21.00,
+    seller: "Alex Johnson",
+    sellerEmail: "alex@university.edu",
+    buyerName: "Alex Johnson",
+    buyerEmail: "alex@university.edu",
+    shippingAddress: "Room 301, North Dormitory, University Campus",
+    status: "Processing",
+    trackingNumber: "PKG-2023-10-002"
+  }
+};
+
 export const MOCK_ORDERS: Order[] = [
   {
     id: 101,
     userId: 1,
-    total: "45.00",
+    total: "47.25",
     status: "Delivered",
     createdAt: new Date("2023-10-15T10:00:00Z"),
     items: [
@@ -194,7 +254,7 @@ export const MOCK_ORDERS: Order[] = [
   {
     id: 102,
     userId: 1,
-    total: "20.00",
+    total: "21.00",
     status: "Processing",
     createdAt: new Date(),
     items: [

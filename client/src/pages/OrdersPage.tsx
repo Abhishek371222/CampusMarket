@@ -1,15 +1,23 @@
 import { useOrders } from "@/hooks/use-orders";
 import { useAuth } from "@/lib/store";
-import { Loader2, Package } from "lucide-react";
+import { Loader2, Package, FileText, Star, MessageCircle } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
+import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
+import { MOCK_INVOICES, MOCK_REVIEWS } from "@/lib/mockData";
 
 export default function OrdersPage() {
   const { data: orders, isLoading } = useOrders();
   const { isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
+  const [reviewData, setReviewData] = useState({ rating: 5, title: "", content: "" });
+  const { toast } = useToast();
 
   if (!isAuthenticated) {
     setLocation("/login");
@@ -69,10 +77,42 @@ export default function OrdersPage() {
                 ))}
               </div>
               
-              <div className="mt-6 pt-4 border-t flex justify-between items-center">
-                <Button variant="outline" size="sm">View Invoice</Button>
+              <div className="mt-6 pt-4 border-t flex gap-2 flex-wrap">
+                {/* Invoice Button */}
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="flex items-center gap-2">
+                      <FileText className="w-4 h-4" />
+                      View Invoice
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl max-h-96 overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Order Invoice #{order.id}</DialogTitle>
+                    </DialogHeader>
+                    <InvoiceView orderId={order.id} />
+                  </DialogContent>
+                </Dialog>
+
+                {/* Review Button */}
                 {order.status === "Delivered" && (
-                  <Button size="sm" variant="secondary">Write a Review</Button>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button size="sm" variant="secondary" className="flex items-center gap-2">
+                        <MessageCircle className="w-4 h-4" />
+                        Write Review
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Write a Review</DialogTitle>
+                      </DialogHeader>
+                      <ReviewForm 
+                        orderId={order.id}
+                        onSubmit={() => toast({ title: "Review submitted!", description: "Thank you for your feedback." })}
+                      />
+                    </DialogContent>
+                  </Dialog>
                 )}
               </div>
             </div>
@@ -88,6 +128,133 @@ export default function OrdersPage() {
           </Link>
         </div>
       )}
+    </div>
+  );
+}
+
+function InvoiceView({ orderId }: { orderId: number }) {
+  const invoice = MOCK_INVOICES[orderId as keyof typeof MOCK_INVOICES];
+  
+  if (!invoice) return <div>Invoice not found</div>;
+
+  return (
+    <div className="space-y-6 text-sm">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <p className="text-xs text-muted-foreground">Invoice #</p>
+          <p className="font-semibold">{invoice.invoiceNumber}</p>
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground">Date</p>
+          <p className="font-semibold">{format(new Date(invoice.date), "MMM d, yyyy")}</p>
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground">Tracking #</p>
+          <p className="font-semibold">{invoice.trackingNumber}</p>
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground">Status</p>
+          <p className="font-semibold">{invoice.status}</p>
+        </div>
+      </div>
+
+      <div className="border-t pt-4">
+        <p className="font-semibold mb-2">Items</p>
+        {invoice.items.map((item, idx) => (
+          <div key={idx} className="flex justify-between text-xs">
+            <span>{item.title} x{item.quantity}</span>
+            <span>${item.subtotal.toFixed(2)}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="border-t pt-4 space-y-1 text-xs">
+        <div className="flex justify-between">
+          <span>Subtotal</span>
+          <span>${invoice.subtotal.toFixed(2)}</span>
+        </div>
+        <div className="flex justify-between">
+          <span>Platform Fee</span>
+          <span>${invoice.platformFee.toFixed(2)}</span>
+        </div>
+        <div className="flex justify-between font-semibold">
+          <span>Total</span>
+          <span>${invoice.total.toFixed(2)}</span>
+        </div>
+      </div>
+
+      <div className="border-t pt-4">
+        <p className="font-semibold text-xs mb-2">Ship To</p>
+        <p className="text-xs">{invoice.buyerName}</p>
+        <p className="text-xs text-muted-foreground">{invoice.shippingAddress}</p>
+      </div>
+    </div>
+  );
+}
+
+function ReviewForm({ orderId, onSubmit }: { orderId: number; onSubmit: () => void }) {
+  const [data, setData] = useState({ rating: 5, title: "", content: "" });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!data.title || !data.content) return;
+    setIsSubmitting(true);
+    await new Promise(resolve => setTimeout(resolve, 800));
+    onSubmit();
+    setData({ rating: 5, title: "", content: "" });
+    setIsSubmitting(false);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <Label className="flex items-center gap-2 mb-2">
+          <Star className="w-4 h-4" />
+          Rating
+        </Label>
+        <div className="flex gap-2">
+          {[1, 2, 3, 4, 5].map(star => (
+            <button
+              key={star}
+              onClick={() => setData(p => ({ ...p, rating: star }))}
+              className={`text-2xl transition-colors ${star <= data.rating ? "text-accent" : "text-gray-300"}`}
+            >
+              ★
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <Label htmlFor="review-title">Review Title</Label>
+        <input
+          id="review-title"
+          type="text"
+          value={data.title}
+          onChange={(e) => setData(p => ({ ...p, title: e.target.value }))}
+          placeholder="e.g., Great condition!"
+          className="w-full mt-1 px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="review-content">Your Review</Label>
+        <Textarea
+          id="review-content"
+          value={data.content}
+          onChange={(e) => setData(p => ({ ...p, content: e.target.value }))}
+          placeholder="Tell other students about this item..."
+          className="w-full mt-1 min-h-24 text-sm"
+        />
+      </div>
+
+      <Button
+        onClick={handleSubmit}
+        disabled={isSubmitting || !data.title || !data.content}
+        className="w-full"
+      >
+        {isSubmitting ? "Submitting..." : "Submit Review"}
+      </Button>
     </div>
   );
 }

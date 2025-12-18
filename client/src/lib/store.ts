@@ -53,9 +53,20 @@ export const useCart = create<CartState>()(
   )
 );
 
+interface SignupData {
+  name: string;
+  username: string;
+  email: string;
+  phone?: string;
+  campus?: string;
+  password: string;
+  confirmPassword: string;
+}
+
 interface AuthState {
   user: User | null;
   login: (username: string) => Promise<void>;
+  signup: (data: SignupData) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
 }
@@ -70,6 +81,20 @@ export const useAuth = create<AuthState>((set) => ({
     if (username) {
       set({ user: CURRENT_USER, isAuthenticated: true });
     }
+  },
+  signup: async (data: SignupData) => {
+    // Simulate API call
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    // Create new user from signup data
+    const newUser: User = {
+      id: Math.floor(Math.random() * 1000) + 100,
+      username: data.username,
+      password: data.password,
+      name: data.name,
+      campus: data.campus || "Main Campus",
+      avatar: `https://images.unsplash.com/photo-${Math.floor(Math.random() * 1000)}-profile?w=100&h=100&fit=crop`,
+    };
+    set({ user: newUser, isAuthenticated: true });
   },
   logout: () => set({ user: null, isAuthenticated: false }),
 }));
