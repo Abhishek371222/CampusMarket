@@ -29,15 +29,15 @@ export default function HomePage() {
             <motion.h1 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="text-4xl md:text-6xl font-display font-extrabold tracking-tight text-foreground"
+              className="text-headline-lg text-foreground"
             >
-              Buy & Sell on <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">Campus</span>
+              Buy & Sell on <span className="text-gradient">Campus</span>
             </motion.h1>
             <motion.p 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto"
+              className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed"
             >
               The trusted marketplace for students. Find textbooks, electronics, and dorm essentials from people you know.
             </motion.p>
@@ -52,7 +52,7 @@ export default function HomePage() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input 
                   placeholder="Search for textbooks, furniture..." 
-                  className="pl-10 h-12 text-base rounded-xl bg-white shadow-sm border-gray-200 focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all"
+                  className="pl-10 h-12 text-base rounded-xl bg-white shadow-elevation-2 border-border focus-ring transition-smooth"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => {
@@ -84,7 +84,7 @@ export default function HomePage() {
 
       {/* Categories */}
       <section className="container mx-auto px-4 -mt-10 relative z-20 mb-16">
-        <div className="glass-panel p-4 rounded-2xl flex flex-wrap justify-center gap-4 shadow-xl">
+        <div className="glass-heavy p-4 rounded-2xl flex flex-wrap justify-center gap-4">
           {CATEGORIES.map((category) => {
             // Dynamically get icon component
             // @ts-ignore - Dynamic access to Lucide icons

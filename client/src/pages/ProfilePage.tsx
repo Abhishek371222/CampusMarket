@@ -147,15 +147,15 @@ export default function ProfilePage() {
 
           {/* Stats */}
           <div className="grid grid-cols-3 gap-4">
-            <Card className="p-4 text-center border-primary/20 bg-white/50">
+            <Card className="p-4 text-center card-elevated border-primary/20 bg-gradient-to-br from-primary/5 to-accent/5 hover:border-primary/40">
               <div className="text-2xl font-bold text-primary">12</div>
               <p className="text-xs text-muted-foreground">Items Sold</p>
             </Card>
-            <Card className="p-4 text-center border-primary/20 bg-white/50">
+            <Card className="p-4 text-center card-elevated border-primary/20 bg-gradient-to-br from-accent/5 to-primary/5 hover:border-accent/40">
               <div className="text-2xl font-bold text-accent">8</div>
               <p className="text-xs text-muted-foreground">Items Bought</p>
             </Card>
-            <Card className="p-4 text-center border-primary/20 bg-white/50">
+            <Card className="p-4 text-center card-elevated border-primary/20 bg-gradient-to-br from-green-50 to-emerald-50 hover:border-green-400/40">
               <div className="text-2xl font-bold text-green-600">$340</div>
               <p className="text-xs text-muted-foreground">Total Sales</p>
             </Card>
@@ -174,8 +174,8 @@ export default function ProfilePage() {
             className="lg:col-span-2 space-y-6"
           >
             {/* About Section */}
-            <Card className="p-6 border-primary/20 bg-white/50 backdrop-blur">
-              <h2 className="text-xl font-display font-bold mb-4 flex items-center gap-2">
+            <Card className="p-6 card-elevated border-primary/20 bg-gradient-primary">
+              <h2 className="text-title-lg mb-4 flex items-center gap-2">
                 <Heart className="w-5 h-5 text-primary" />
                 About Me
               </h2>
@@ -193,8 +193,8 @@ export default function ProfilePage() {
             </Card>
 
             {/* Contact Info */}
-            <Card className="p-6 border-primary/20 bg-white/50 backdrop-blur">
-              <h2 className="text-xl font-display font-bold mb-4">Contact Information</h2>
+            <Card className="p-6 card-elevated border-primary/20 bg-gradient-primary">
+              <h2 className="text-title-lg mb-4">Contact Information</h2>
               <div className="space-y-4">
                 <div>
                   <Label className="flex items-center gap-2 text-sm font-semibold mb-2">
@@ -258,8 +258,8 @@ export default function ProfilePage() {
             </Card>
 
             {/* Preferences */}
-            <Card className="p-6 border-primary/20 bg-white/50 backdrop-blur">
-              <h2 className="text-xl font-display font-bold mb-4">Preferences</h2>
+            <Card className="p-6 card-elevated border-primary/20 bg-gradient-primary">
+              <h2 className="text-title-lg mb-4">Preferences</h2>
               <div className="space-y-3">
                 <label className="flex items-center gap-3">
                   <input type="checkbox" defaultChecked className="rounded" />

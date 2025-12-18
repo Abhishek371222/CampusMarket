@@ -82,6 +82,7 @@
 }
 
 @layer utilities {
+  /* ===== GLASSMORPHISM SYSTEM ===== */
   .glass-panel {
     @apply bg-white/70 backdrop-blur-xl border border-white/20 shadow-xl;
   }
@@ -90,11 +91,100 @@
     @apply bg-white/80 backdrop-blur-md border border-gray-100 shadow-sm transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
   }
 
+  .glass-soft {
+    @apply bg-white/50 backdrop-blur-md border border-white/10 shadow-sm;
+  }
+
+  .glass-medium {
+    @apply bg-white/60 backdrop-blur-lg border border-white/15 shadow-md;
+  }
+
+  .glass-heavy {
+    @apply bg-white/70 backdrop-blur-xl border border-white/20 shadow-lg;
+  }
+
+  /* ===== SHADOW DEPTH SYSTEM ===== */
+  .shadow-elevation-1 {
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  .shadow-elevation-2 {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08), 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .shadow-elevation-3 {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1), 0 8px 16px rgba(0, 0, 0, 0.12);
+  }
+
+  .shadow-elevation-4 {
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12), 0 16px 32px rgba(0, 0, 0, 0.15);
+  }
+
+  .shadow-elevation-5 {
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15), 0 24px 48px rgba(0, 0, 0, 0.2);
+  }
+
+  /* ===== GRADIENT ACCENTS ===== */
   .text-gradient {
     @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent;
   }
 
-  /* 3D Effects */
+  .gradient-primary {
+    @apply bg-gradient-to-br from-primary/10 to-accent/10;
+  }
+
+  .gradient-border {
+    @apply relative border border-transparent bg-gradient-to-r from-primary to-accent bg-clip-padding;
+  }
+
+  /* ===== TYPOGRAPHY SCALE ===== */
+  .text-headline-lg {
+    @apply text-4xl md:text-5xl font-display font-bold tracking-tighter;
+  }
+
+  .text-headline-md {
+    @apply text-3xl md:text-4xl font-display font-bold tracking-tight;
+  }
+
+  .text-headline-sm {
+    @apply text-2xl md:text-3xl font-display font-bold tracking-tight;
+  }
+
+  .text-title-lg {
+    @apply text-xl font-display font-bold;
+  }
+
+  .text-title-md {
+    @apply text-lg font-display font-semibold;
+  }
+
+  .text-label-lg {
+    @apply text-sm font-semibold uppercase tracking-wider;
+  }
+
+  .text-label-md {
+    @apply text-xs font-semibold uppercase tracking-widest;
+  }
+
+  /* ===== CARD VARIANTS ===== */
+  .card-elevated {
+    @apply bg-card shadow-elevation-2 rounded-lg transition-all duration-300 hover:shadow-elevation-3 hover:-translate-y-0.5;
+  }
+
+  .card-surface {
+    @apply bg-white border border-border/50 rounded-lg shadow-elevation-1;
+  }
+
+  /* ===== FOCUS STATES ===== */
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2;
+  }
+
+  .focus-ring-inset {
+    @apply focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary/50;
+  }
+
+  /* ===== 3D EFFECTS ===== */
   .perspective {
     perspective: 1000px;
   }
@@ -108,6 +198,7 @@
     transform: rotateY(5deg) rotateX(-5deg) translateZ(10px);
   }
 
+  /* ===== ANIMATIONS ===== */
   .float-animation {
     animation: float 6s ease-in-out infinite;
   }
@@ -135,5 +226,27 @@
   @keyframes shimmer {
     0% { background-position: -200% 0; }
     100% { background-position: 200% 0; }
+  }
+
+  /* ===== HOVER ELEVATION ===== */
+  .hover-elevate {
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .hover-elevate:hover {
+    @apply -translate-y-1 shadow-elevation-3;
+  }
+
+  .active-elevate-2:active {
+    @apply translate-y-0.5;
+  }
+
+  /* ===== SMOOTH TRANSITIONS ===== */
+  .transition-smooth {
+    @apply transition-all duration-300 ease-out;
+  }
+
+  .transition-spring {
+    @apply transition-all duration-500 cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 }
