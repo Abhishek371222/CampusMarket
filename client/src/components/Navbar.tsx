@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
-import { useCart, useAuth } from "@/lib/store";
-import { ShoppingCart, User, Menu, X, LogOut, Package } from "lucide-react";
+import { useCart, useAuth, useFavorites } from "@/lib/store";
+import { ShoppingCart, User, Menu, X, LogOut, Package, Heart } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -18,6 +18,8 @@ export function Navbar() {
   const [location] = useLocation();
   const cartItems = useCart((state) => state.items);
   const cartCount = cartItems.reduce((acc, item) => acc + item.quantity, 0);
+  const { favorites } = useFavorites();
+  const favoritesCount = favorites.length;
   const { user, isAuthenticated, logout } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -48,8 +50,31 @@ export function Navbar() {
           </div>
 
           <div className="flex items-center gap-4">
+            {/* Wishlist Button with 3D Animation */}
+            <Link href="/saved-items">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="relative button-3d hover:bg-accent/10 hover:text-accent transition-colors"
+                data-testid="button-wishlist"
+              >
+                <Heart className={`h-5 w-5 ${favoritesCount > 0 ? 'fill-accent text-accent' : ''}`} />
+                {favoritesCount > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-white shadow-md ring-2 ring-background animate-pulse">
+                    {favoritesCount}
+                  </span>
+                )}
+              </Button>
+            </Link>
+
+            {/* Cart Button */}
             <Link href="/cart">
-              <Button variant="ghost" size="icon" className="relative hover:bg-primary/10 hover:text-primary transition-colors">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="relative button-3d hover:bg-primary/10 hover:text-primary transition-colors"
+                data-testid="button-cart"
+              >
                 <ShoppingCart className="h-5 w-5" />
                 {cartCount > 0 && (
                   <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-white shadow-sm ring-2 ring-background">
