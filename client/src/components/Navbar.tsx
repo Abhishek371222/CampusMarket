@@ -33,12 +33,11 @@ export function Navbar() {
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center gap-8">
             <Link href="/" className="flex items-center gap-2 group">
-              <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary via-accent to-primary flex items-center justify-center text-white font-bold font-display text-lg shadow-lg shadow-primary/30 group-hover:shadow-primary/50 group-hover:scale-110 transition-transform duration-300 relative overflow-hidden button-3d">
-                <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                <span className="relative">𝓜</span>
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-bold font-display text-xl shadow-lg shadow-primary/40 group-hover:shadow-primary/60 group-hover:scale-110 transition-all duration-300">
+                CM
               </div>
-              <span className="font-display font-bold text-lg tracking-tight hidden sm:block">
-                <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent font-black">Campus</span><span className="text-foreground">Market</span>
+              <span className="font-display font-bold text-lg tracking-tight hidden sm:block text-foreground">
+                Campus<span className="text-primary">Market</span>
               </span>
             </Link>
 
