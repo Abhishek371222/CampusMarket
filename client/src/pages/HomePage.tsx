@@ -22,8 +22,26 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen pb-20">
-      {/* Hero Section */}
-      <section className="relative bg-gradient-to-b from-primary/5 to-background pt-16 pb-24 overflow-hidden">
+      {/* Hero Section with 3D Background */}
+      <section className="relative bg-gradient-to-b from-primary/5 to-background pt-16 pb-24 overflow-hidden perspective">
+        {/* 3D Animated Background Elements */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-10 left-10 w-72 h-72 bg-primary/15 rounded-full blur-3xl animate-float-slow opacity-60" />
+          <div className="absolute top-40 right-20 w-96 h-96 bg-accent/10 rounded-full blur-3xl animate-float-delayed opacity-50" />
+          <div className="absolute -bottom-20 left-1/2 w-80 h-80 bg-primary/10 rounded-full blur-3xl animate-float opacity-40" />
+          
+          {/* 3D Rotating Cube Background */}
+          <div className="absolute top-1/3 right-1/4 w-32 h-32 animate-spin-slow opacity-10">
+            <div className="absolute inset-0 border-2 border-primary/30 rounded-lg transform rotate-12" />
+            <div className="absolute inset-4 border-2 border-accent/30 rounded-lg transform -rotate-12" />
+          </div>
+          
+          {/* Floating Particles */}
+          <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-primary/40 rounded-full animate-pulse" />
+          <div className="absolute top-1/3 right-1/3 w-2 h-2 bg-accent/40 rounded-full animate-pulse" style={{ animationDelay: '0.5s' }} />
+          <div className="absolute bottom-1/3 left-1/2 w-2 h-2 bg-primary/40 rounded-full animate-pulse" style={{ animationDelay: '1s' }} />
+        </div>
+
         <div className="container mx-auto px-4 relative z-10">
           <div className="max-w-3xl mx-auto text-center space-y-6">
             <motion.h1 
@@ -31,7 +49,7 @@ export default function HomePage() {
               animate={{ opacity: 1, y: 0 }}
               className="text-headline-lg text-foreground"
             >
-              Buy & Sell on <span className="text-gradient">Campus</span>
+              Buy & Sell on <span className="text-gradient animate-text-shine">Campus</span>
             </motion.h1>
             <motion.p 
               initial={{ opacity: 0, y: 20 }}

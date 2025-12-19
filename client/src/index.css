@@ -251,6 +251,48 @@
     100% { background-position: 200% 0; }
   }
 
+  /* ===== 3D BACKGROUND ANIMATIONS ===== */
+  @keyframes float-slow {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-30px); }
+  }
+
+  @keyframes float-delayed {
+    0%, 100% { transform: translateY(0px) translateX(0px); }
+    25% { transform: translateY(-30px) translateX(-15px); }
+    50% { transform: translateY(-50px) translateX(15px); }
+    75% { transform: translateY(-30px) translateX(-15px); }
+  }
+
+  @keyframes spin-slow {
+    0% { transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg); }
+    100% { transform: rotateX(360deg) rotateY(360deg) rotateZ(180deg); }
+  }
+
+  @keyframes text-shine {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  .animate-float-slow {
+    animation: float-slow 6s ease-in-out infinite;
+  }
+
+  .animate-float-delayed {
+    animation: float-delayed 10s ease-in-out infinite;
+  }
+
+  .animate-spin-slow {
+    animation: spin-slow 20s linear infinite;
+  }
+
+  .animate-text-shine {
+    background: linear-gradient(90deg, currentColor, rgb(15, 214, 165), currentColor);
+    background-size: 200% 100%;
+    animation: text-shine 3s ease-in-out infinite;
+  }
+
   /* ===== HOVER ELEVATION ===== */
   .hover-elevate {
     transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
