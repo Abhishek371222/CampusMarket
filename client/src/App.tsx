@@ -21,6 +21,7 @@ import MyListingsPage from "@/pages/MyListingsPage";
 import SavedItemsPage from "@/pages/SavedItemsPage";
 import ReviewsPage from "@/pages/ReviewsPage";
 import PeoplePage from "@/pages/PeoplePage";
+import PersonProfilePage from "@/pages/PersonProfilePage";
 import AboutPage from "@/pages/AboutPage";
 import ContactPage from "@/pages/ContactPage";
 import TermsPage from "@/pages/TermsPage";
@@ -42,6 +43,7 @@ function Router() {
       <Route path="/saved-items" component={SavedItemsPage} />
       <Route path="/reviews" component={ReviewsPage} />
       <Route path="/people" component={PeoplePage} />
+      <Route path="/people/:id" component={PersonProfilePage} />
       <Route path="/orders" component={OrdersPage} />
       <Route path="/about" component={AboutPage} />
       <Route path="/contact" component={ContactPage} />

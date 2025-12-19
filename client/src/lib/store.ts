@@ -195,3 +195,20 @@ export const useFollow = create<FollowState>()(
     }
   )
 );
+
+interface CollegeFilterState {
+  selectedCollege: string;
+  setSelectedCollege: (college: string) => void;
+}
+
+export const useCollegeFilter = create<CollegeFilterState>()(
+  persist(
+    (set) => ({
+      selectedCollege: "",
+      setSelectedCollege: (college) => set({ selectedCollege: college }),
+    }),
+    {
+      name: 'campus-college-filter',
+    }
+  )
+);

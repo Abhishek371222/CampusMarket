@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useCart, useFavorites } from "@/lib/store";
-import { ShoppingCart, Star, Heart, Share2 } from "lucide-react";
+import { ShoppingCart, Star, Heart, Share2, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
@@ -21,21 +21,17 @@ export function ProductCard({ product }: ProductCardProps) {
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     addItem(product);
-    toast({
-      title: "Added to cart",
-      description: `${product.title} has been added to your cart.`,
-    });
+    toast({ description: "Added to cart!" });
   };
 
   const handleToggleFavorite = (e: React.MouseEvent) => {
     e.preventDefault();
+    setIsFav(!isFav);
     if (isFav) {
       removeFavorite(product.id);
-      setIsFav(false);
       toast({ description: "Removed from saved items" });
     } else {
       addFavorite(product.id);
-      setIsFav(true);
       toast({ description: "Added to saved items" });
     }
   };
@@ -62,13 +58,14 @@ export function ProductCard({ product }: ProductCardProps) {
             {product.condition}
           </Badge>
           
-          {/* Like and Share buttons */}
+          {/* Like, Share, and Profile buttons */}
           <div className="absolute top-3 right-3 z-10 flex gap-2">
             <Button
               onClick={handleToggleFavorite}
               size="icon"
               variant="secondary"
               className="rounded-full shadow-sm backdrop-blur-md bg-white/80 hover:bg-white h-9 w-9"
+              data-testid={`button-like-${product.id}`}
             >
               <Heart className={`w-4 h-4 ${isFav ? 'fill-accent text-accent' : ''}`} />
             </Button>
@@ -77,8 +74,21 @@ export function ProductCard({ product }: ProductCardProps) {
               size="icon"
               variant="secondary"
               className="rounded-full shadow-sm backdrop-blur-md bg-white/80 hover:bg-white h-9 w-9"
+              data-testid={`button-share-${product.id}`}
             >
               <Share2 className="w-4 h-4" />
+            </Button>
+            <Button
+              onClick={(e) => {
+                e.preventDefault();
+                window.location.href = `/people/${product.sellerId}`;
+              }}
+              size="icon"
+              variant="secondary"
+              className="rounded-full shadow-sm backdrop-blur-md bg-white/80 hover:bg-white h-9 w-9 button-3d"
+              data-testid={`button-seller-profile-${product.id}`}
+            >
+              <User className="w-4 h-4" />
             </Button>
           </div>
 
@@ -123,9 +133,9 @@ export function ProductCard({ product }: ProductCardProps) {
             <span className="font-display font-bold text-2xl tracking-tight text-foreground">
               ${product.price}
             </span>
-            <div className="text-xs text-muted-foreground text-right">
-              Sold by<br/>
-              <span className="font-medium text-foreground">{product.sellerName}</span>
+            <div className="text-right">
+              <p className="text-xs text-muted-foreground">{product.sellerName}</p>
+              <p className="text-xs font-semibold text-primary">{product.condition}</p>
             </div>
           </div>
         </CardContent>
