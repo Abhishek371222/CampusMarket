@@ -1,7 +1,7 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import { Product, User } from '@shared/schema';
-import { CURRENT_USER, MOCK_PRODUCTS } from './mockData';
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import { Product, User } from "@shared/schema";
+import { MOCK_PRODUCTS } from "./mockData";
 
 interface CartItem extends Product {
   quantity: number;
@@ -53,7 +53,7 @@ export const useCart = create<CartState>()(
   )
 );
 
-interface SignupData {
+export interface SignupData {
   name: string;
   username: string;
   email: string;
@@ -67,14 +67,15 @@ interface UserProfile extends User {
   email?: string;
   phone?: string;
   bio?: string;
+  password?: string;
 }
 
 interface AuthState {
   user: UserProfile | null;
-  login: (username: string) => Promise<void>;
+  login: (credentials: { email: string; password: string }) => Promise<void>;
   signup: (data: SignupData) => Promise<void>;
   updateProfile: (data: Partial<UserProfile>) => void;
-  logout: () => void;
+  logout: () => Promise<void>;
   isAuthenticated: boolean;
 }
 
@@ -83,36 +84,109 @@ export const useAuth = create<AuthState>()(
     (set) => ({
       user: null,
       isAuthenticated: false,
-      login: async (username) => {
-        await new Promise((resolve) => setTimeout(resolve, 800));
-        if (username) {
-          set({ user: { ...CURRENT_USER, email: "alex@university.edu", phone: "+1 (555) 123-4567", bio: "Love buying and selling on campus!" }, isAuthenticated: true });
+      login: async ({ email, password }) => {
+        // Try real backend login first
+        try {
+          const res = await fetch("/api/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ email, password }),
+          });
+
+          if (!res.ok) {
+            throw new Error("Invalid credentials");
+          }
+
+          const data = (await res.json()) as { user: UserProfile };
+          set({ user: data.user, isAuthenticated: true });
+          return;
+        } catch (err) {
+          // Fallback: use locally stored user if backend is unavailable
+          let matched = false;
+          set((state) => {
+            if (
+              state.user &&
+              state.user.email === email &&
+              state.user.password === password
+            ) {
+              matched = true;
+              return { ...state, isAuthenticated: true };
+            }
+            return state;
+          });
+
+          if (!matched) {
+            throw err instanceof Error ? err : new Error("Invalid credentials");
+          }
         }
       },
       signup: async (data: SignupData) => {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        const newUser: UserProfile = {
-          id: Math.floor(Math.random() * 1000) + 100,
-          username: data.username,
-          password: data.password,
-          name: data.name,
-          campus: data.campus || "Main Campus",
-          avatar: `https://images.unsplash.com/photo-${Math.floor(Math.random() * 1000)}-profile?w=100&h=100&fit=crop`,
-          email: data.email,
-          phone: data.phone,
-          bio: "Welcome to Campus Market!"
-        };
-        set({ user: newUser, isAuthenticated: true });
+        // Try real backend signup first
+        try {
+          const res = await fetch("/api/auth/signup", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({
+              name: data.name,
+              username: data.username,
+              email: data.email,
+              phone: data.phone,
+              campus: data.campus || "Main Campus",
+              password: data.password,
+            }),
+          });
+
+          if (!res.ok) {
+            const error = await res.json().catch(() => null);
+            throw new Error(error?.message || "Signup failed");
+          }
+
+          const user = (await res.json()) as UserProfile;
+          set({ user, isAuthenticated: true });
+        } catch (err) {
+          // Fallback: store user only in local state (still persisted via localStorage)
+          const newUser: UserProfile = {
+            id: Date.now(),
+            username: data.username,
+            password: data.password,
+            name: data.name,
+            campus: data.campus || "Main Campus",
+            avatar: `https://images.unsplash.com/photo-${Math.floor(
+              Math.random() * 1000,
+            )}-profile?w=100&h=100&fit=crop`,
+            email: data.email,
+            phone: data.phone,
+            bio: "Welcome to Campus Market!",
+            rating: "5.0",
+            reviewCount: 0,
+            totalListings: 0,
+            role: "user",
+            createdAt: new Date(),
+          };
+          set({ user: newUser, isAuthenticated: true });
+        }
       },
       updateProfile: (data) => {
         set((state) => ({
           user: state.user ? { ...state.user, ...data } : null
         }));
       },
-      logout: () => set({ user: null, isAuthenticated: false }),
+      logout: async () => {
+        try {
+          await fetch("/api/auth/logout", {
+            method: "POST",
+            credentials: "include",
+          });
+        } catch {
+          // ignore network errors on logout
+        }
+        set({ user: null, isAuthenticated: false });
+      },
     }),
     {
-      name: 'campus-auth-storage',
+      name: "campus-auth-storage",
     }
   )
 );

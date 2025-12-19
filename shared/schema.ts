@@ -6,7 +6,7 @@ export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
   email: text("email").notNull().unique(),
-  password: text("password").notNull(),
+  password: text("password").notNull(), // hashed password
   name: text("name").notNull(),
   campus: text("campus").default("Main Campus"),
   avatar: text("avatar"),
@@ -15,6 +15,7 @@ export const users = pgTable("users", {
   rating: decimal("rating").default("5.0"),
   reviewCount: integer("review_count").default(0),
   totalListings: integer("total_listings").default(0),
+  role: text("role").notNull().default("user"), // user, seller, admin
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -29,13 +30,14 @@ export const products = pgTable("products", {
   sellerId: integer("seller_id").notNull(),
   sellerName: text("seller_name").notNull(),
   sellerRating: decimal("seller_rating").default("5.0"),
+  status: text("status").notNull().default("active"), // active, sold, archived
 });
 
 export const orders = pgTable("orders", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
   total: decimal("total").notNull(),
-  status: text("status").notNull(), // Processing, Shipped, Delivered
+  status: text("status").notNull(), // Created, Paid, Shipped, Delivered, Cancelled
   createdAt: timestamp("created_at").defaultNow(),
   items: jsonb("items").notNull(), // Array of product details
 });
@@ -54,6 +56,16 @@ export const favorites = pgTable("favorites", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
   productId: integer("product_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  type: text("type").notNull(), // order_update, message, price_drop, system
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  read: boolean("read").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -76,3 +88,5 @@ export type Product = typeof products.$inferSelect;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
 export type Order = typeof orders.$inferSelect;
 export type InsertOrder = z.infer<typeof insertOrderSchema>;
+export type Favorite = typeof favorites.$inferSelect;
+export type Review = typeof reviews.$inferSelect;

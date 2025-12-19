@@ -1,12 +1,13 @@
 import { Product } from "@shared/schema";
 import { Link } from "wouter";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useCart, useFavorites } from "@/lib/store";
 import { ShoppingCart, Star, Heart, Share2, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
+import { motion } from "framer-motion";
 
 interface ProductCardProps {
   product: Product;
@@ -17,6 +18,7 @@ export function ProductCard({ product }: ProductCardProps) {
   const { addFavorite, removeFavorite, isFavorite } = useFavorites();
   const { toast } = useToast();
   const [isFav, setIsFav] = useState(isFavorite(product.id));
+  const [tilt, setTilt] = useState({ x: 0, y: 0 });
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -50,9 +52,35 @@ export function ProductCard({ product }: ProductCardProps) {
     }
   };
 
+  const handleCardMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const y = (e.clientY - rect.top) / rect.height;
+    const rotateX = (0.5 - y) * 8;
+    const rotateY = (x - 0.5) * 10;
+    setTilt({ x: rotateX, y: rotateY });
+  };
+
+  const handleCardMouseLeave = () => {
+    setTilt({ x: 0, y: 0 });
+  };
+
   return (
     <Link href={`/products/${product.id}`} className="block h-full group">
-      <Card className="h-full overflow-hidden border border-slate-200 bg-white shadow-md hover:shadow-2xl hover:-translate-y-2 hover:border-primary/30 rounded-3xl transition-all duration-300">
+      <motion.div
+        initial={{ opacity: 0, y: 16, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        whileHover={{ scale: 1.02 }}
+        transition={{ duration: 0.25, ease: "easeOut" }}
+        onMouseMove={handleCardMouseMove}
+        onMouseLeave={handleCardMouseLeave}
+        style={{
+          transform: `perspective(900px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)`,
+          transformStyle: "preserve-3d",
+        }}
+        className="h-full"
+      >
+        <Card className="h-full overflow-hidden border border-slate-200 bg-white shadow-md hover:shadow-2xl hover:border-primary/30 rounded-3xl transition-all duration-300">
         <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-slate-100 to-slate-50">
           <Badge className="absolute top-4 left-4 z-10 bg-gradient-to-r from-primary to-accent text-white backdrop-blur-md border-0 shadow-lg font-semibold px-3 py-1.5 text-xs uppercase tracking-wider">
             {product.condition}
@@ -109,7 +137,7 @@ export function ProductCard({ product }: ProductCardProps) {
             </Button>
           </div>
         </div>
-        
+
         <CardContent className="p-5">
           <div className="flex items-start justify-between gap-2 mb-2">
             <Badge variant="outline" className="text-xs text-muted-foreground border-border/50 bg-secondary/30">
@@ -140,6 +168,7 @@ export function ProductCard({ product }: ProductCardProps) {
           </div>
         </CardContent>
       </Card>
+      </motion.div>
     </Link>
   );
 }

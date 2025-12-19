@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { useCart, useAuth, useFavorites, useFollow, useTheme } from "@/lib/store";
-import { ShoppingCart, User, Menu, X, LogOut, Package, Heart, Users, Moon, Sun } from "lucide-react";
+import { ShoppingCart, User, Menu, LogOut, Package, Heart, Users, Moon, Sun } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { motion } from "framer-motion";
 
 export function Navbar() {
   const [location] = useLocation();
@@ -38,14 +39,24 @@ export function Navbar() {
   const isActive = (path: string) => location === path;
 
   return (
-    <nav className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white/95 backdrop-blur-2xl shadow-sm">
+    <motion.nav
+      initial={{ y: -40, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.45, ease: "easeOut" }}
+      className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white/95 backdrop-blur-2xl shadow-sm"
+    >
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center gap-8">
             <Link href="/" className="flex items-center gap-3 group">
-              <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-primary via-blue-500 to-accent flex items-center justify-center text-white font-bold font-display text-lg shadow-lg shadow-primary/50 group-hover:shadow-primary/70 group-hover:scale-110 transition-all duration-300 flex-shrink-0">
+              <motion.div
+                whileHover={{ rotateX: -10, rotateY: 12, scale: 1.06 }}
+                transition={{ type: "spring", stiffness: 260, damping: 18 }}
+                className="h-11 w-11 rounded-xl bg-[conic-gradient(from_180deg_at_50%_50%,rgba(59,130,246,1),rgba(14,165,233,1),rgba(236,72,153,1),rgba(59,130,246,1))] flex items-center justify-center text-white font-bold font-display text-lg shadow-lg shadow-primary/50 flex-shrink-0"
+                style={{ transformStyle: "preserve-3d" }}
+              >
                 CM
-              </div>
+              </motion.div>
               <div className="hidden sm:block">
                 <span className="font-display font-bold text-lg tracking-tight text-slate-900">
                   Campus<span className="text-primary">Market</span>
@@ -246,6 +257,6 @@ export function Navbar() {
           </div>
         </div>
       </div>
-    </nav>
+    </motion.nav>
   );
 }
