@@ -165,3 +165,33 @@ export const useUserListings = create<UserListingsState>()(
     }
   )
 );
+
+interface FollowState {
+  following: number[];
+  addFollow: (peopleId: number) => void;
+  removeFollow: (peopleId: number) => void;
+  isFollowing: (peopleId: number) => boolean;
+}
+
+export const useFollow = create<FollowState>()(
+  persist(
+    (set, get) => ({
+      following: [],
+      addFollow: (peopleId) => {
+        const current = get().following;
+        if (!current.includes(peopleId)) {
+          set({ following: [...current, peopleId] });
+        }
+      },
+      removeFollow: (peopleId) => {
+        set({ following: get().following.filter(id => id !== peopleId) });
+      },
+      isFollowing: (peopleId) => {
+        return get().following.includes(peopleId);
+      }
+    }),
+    {
+      name: 'campus-follow-storage',
+    }
+  )
+);

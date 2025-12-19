@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
-import { useCart, useAuth, useFavorites } from "@/lib/store";
-import { ShoppingCart, User, Menu, X, LogOut, Package, Heart } from "lucide-react";
+import { useCart, useAuth, useFavorites, useFollow } from "@/lib/store";
+import { ShoppingCart, User, Menu, X, LogOut, Package, Heart, Users } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -20,6 +20,8 @@ export function Navbar() {
   const cartCount = cartItems.reduce((acc, item) => acc + item.quantity, 0);
   const { favorites } = useFavorites();
   const favoritesCount = favorites.length;
+  const { following } = useFollow();
+  const followingCount = following.length;
   const { user, isAuthenticated, logout } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -43,6 +45,9 @@ export function Navbar() {
               <Link href="/" className={isActive("/") ? "text-primary" : "text-muted-foreground hover:text-foreground transition-colors"}>
                 Browse
               </Link>
+              <Link href="/people" className={isActive("/people") ? "text-primary" : "text-muted-foreground hover:text-foreground transition-colors"}>
+                People
+              </Link>
               <Link href="/sell" className={isActive("/sell") ? "text-primary bg-accent/10 px-3 py-1 rounded-full" : "text-muted-foreground hover:text-foreground transition-colors"}>
                 ✨ Sell Item
               </Link>
@@ -50,6 +55,23 @@ export function Navbar() {
           </div>
 
           <div className="flex items-center gap-4">
+            {/* People/Follow Button */}
+            <Link href="/people">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="relative button-3d hover:bg-primary/10 hover:text-primary transition-colors hidden sm:flex"
+                data-testid="button-people"
+              >
+                <Users className={`h-5 w-5 ${followingCount > 0 ? 'text-primary' : ''}`} />
+                {followingCount > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-white shadow-md ring-2 ring-background animate-pulse">
+                    {followingCount}
+                  </span>
+                )}
+              </Button>
+            </Link>
+
             {/* Wishlist Button with 3D Animation */}
             <Link href="/saved-items">
               <Button 

@@ -262,3 +262,102 @@ export const MOCK_ORDERS: Order[] = [
     ]
   }
 ];
+
+// People to follow
+export interface Person {
+  id: number;
+  name: string;
+  username: string;
+  campus: string;
+  avatar: string;
+  bio: string;
+  itemsSold: number;
+  rating: number;
+}
+
+export const MOCK_PEOPLE: Person[] = [
+  {
+    id: 2,
+    name: "Sarah Chen",
+    username: "sarah_chen",
+    campus: "North Campus",
+    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop",
+    bio: "Electronics enthusiast & seller",
+    itemsSold: 24,
+    rating: 4.8
+  },
+  {
+    id: 3,
+    name: "Mike Ross",
+    username: "mike_ross_books",
+    campus: "Central Campus",
+    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop",
+    bio: "Textbook dealer & study buddy",
+    itemsSold: 18,
+    rating: 4.5
+  },
+  {
+    id: 4,
+    name: "Jessica Pearson",
+    username: "jess_pearson",
+    campus: "South Campus",
+    avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop",
+    bio: "Hostel essentials & home goods",
+    itemsSold: 32,
+    rating: 5.0
+  },
+  {
+    id: 5,
+    name: "Harvey Specter",
+    username: "harvey_specter",
+    campus: "West Campus",
+    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop",
+    bio: "Fashion & bike enthusiast",
+    itemsSold: 28,
+    rating: 4.7
+  },
+  {
+    id: 6,
+    name: "Louis Litt",
+    username: "louis_litt_books",
+    campus: "North Campus",
+    avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=100&h=100&fit=crop",
+    bio: "Tech books & algorithms",
+    itemsSold: 15,
+    rating: 4.2
+  },
+  {
+    id: 7,
+    name: "Donna Paulsen",
+    username: "donna_paulsen",
+    campus: "East Campus",
+    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop",
+    bio: "Fashion insider & style blogger",
+    itemsSold: 41,
+    rating: 4.9
+  }
+];
+
+// All colleges in India
+export const COLLEGES_INDIA = [
+  { id: 1, name: "Indian Institute of Technology Delhi", campus: "North Campus" },
+  { id: 2, name: "Delhi University North Campus", campus: "North Campus" },
+  { id: 3, name: "Delhi University South Campus", campus: "South Campus" },
+  { id: 4, name: "Ashoka University", campus: "Central Campus" },
+  { id: 5, name: "Indian Institute of Management Ahmedabad", campus: "West Campus" },
+  { id: 6, name: "Indian Institute of Technology Bombay", campus: "East Campus" },
+  { id: 7, name: "St. Xavier's College Mumbai", campus: "South Campus" },
+  { id: 8, name: "Symbiosis International University Pune", campus: "Central Campus" },
+  { id: 9, name: "Indian Institute of Technology Kharagpur", campus: "East Campus" },
+  { id: 10, name: "Manipal Academy of Higher Education", campus: "West Campus" },
+  { id: 11, name: "Jawaharlal Nehru University Delhi", campus: "North Campus" },
+  { id: 12, name: "Christ University Bangalore", campus: "South Campus" },
+  { id: 13, name: "Banaras Hindu University", campus: "Central Campus" },
+  { id: 14, name: "University of Hyderabad", campus: "East Campus" },
+  { id: 15, name: "IIT Madras", campus: "South Campus" },
+  { id: 16, name: "NIT Trichy", campus: "South Campus" },
+  { id: 17, name: "Ramakrishna Mission Vivekananda University", campus: "East Campus" },
+  { id: 18, name: "Miranda House Delhi University", campus: "North Campus" },
+  { id: 19, name: "St. Stephen's College Delhi", campus: "North Campus" },
+  { id: 20, name: "Presidency University Bangalore", campus: "South Campus" }
+];
