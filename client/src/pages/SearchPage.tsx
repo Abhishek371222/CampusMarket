@@ -18,7 +18,7 @@ export default function SearchPage() {
   const [priceRange, setPriceRange] = useState({ min: 0, max: 500 });
   const [condition, setCondition] = useState<string | null>(null);
 
-  const { data: products, isLoading } = useProducts(selectedCategory);
+  const { data: products, isLoading } = useProducts(selectedCategory === "all" ? undefined : selectedCategory);
 
   const filteredProducts = products?.filter(p => {
     const matchesSearch = p.title.toLowerCase().includes(searchQuery.toLowerCase()) || 

@@ -52,9 +52,9 @@ export function ProductCard({ product }: ProductCardProps) {
 
   return (
     <Link href={`/products/${product.id}`} className="block h-full group">
-      <Card className="h-full overflow-hidden border-border/50 bg-card shadow-elevation-2 hover:shadow-elevation-4 hover:-translate-y-1 hover:border-primary/20 rounded-2xl transition-spring">
-        <div className="relative aspect-[4/3] overflow-hidden bg-muted/50">
-          <Badge className="absolute top-3 left-3 z-10 bg-white/90 text-foreground backdrop-blur-md hover:bg-white border-0 shadow-sm font-medium px-2.5 py-1">
+      <Card className="h-full overflow-hidden border border-slate-200 bg-white shadow-md hover:shadow-2xl hover:-translate-y-2 hover:border-primary/30 rounded-3xl transition-all duration-300">
+        <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-slate-100 to-slate-50">
+          <Badge className="absolute top-4 left-4 z-10 bg-gradient-to-r from-primary to-accent text-white backdrop-blur-md border-0 shadow-lg font-semibold px-3 py-1.5 text-xs uppercase tracking-wider">
             {product.condition}
           </Badge>
           

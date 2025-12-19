@@ -7,6 +7,7 @@ import { ShoppingCart, Heart, Share2, ShieldCheck, ArrowLeft, Star, MapPin } fro
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SellerRating } from "@/components/SellerRating";
 
 export default function ProductDetailsPage() {
   const [match, params] = useRoute("/products/:id");
@@ -103,23 +104,12 @@ export default function ProductDetailsPage() {
             </div>
 
             {/* Seller Card */}
-            <div className="bg-secondary/30 rounded-2xl p-4 border border-border/50 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white font-bold">
-                  {product.sellerName.charAt(0)}
-                </div>
-                <div>
-                  <p className="font-medium text-sm text-foreground">Sold by {product.sellerName}</p>
-                  <div className="flex items-center text-amber-500 text-xs font-bold mt-0.5">
-                    <Star className="w-3 h-3 fill-current mr-1" />
-                    {product.sellerRating} Seller Rating
-                  </div>
-                </div>
-              </div>
-              <Button variant="outline" size="sm" className="text-xs h-8">
-                View Profile
-              </Button>
-            </div>
+            <SellerRating 
+              sellerName={product.sellerName}
+              rating={product.sellerRating}
+              reviewCount={42}
+              responseTime="< 2 hours"
+            />
 
             <div className="space-y-4">
               <h3 className="font-bold text-lg">Description</h3>
@@ -167,6 +157,32 @@ export default function ProductDetailsPage() {
                 <span>Secure Meetup</span>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Related Products / Recommendations */}
+        <div className="mt-20 pt-20 border-t">
+          <h2 className="text-3xl font-display font-bold mb-8 flex items-center gap-2">
+            <span>Similar Items</span>
+            <span className="text-2xl">✨</span>
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Placeholder for related products - using same product for demo */}
+            {[1, 2, 3, 4].map((idx) => (
+              <Link key={idx} href={`/products/${product.id}`} className="group">
+                <div className="rounded-2xl overflow-hidden bg-slate-100 aspect-[4/3] mb-3 relative">
+                  <img 
+                    src={product.image} 
+                    alt="Related"
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                  />
+                </div>
+                <h3 className="font-semibold text-sm group-hover:text-primary transition-colors line-clamp-2">
+                  {product.title}
+                </h3>
+                <p className="text-primary font-bold text-sm mt-1">${product.price}</p>
+              </Link>
+            ))}
           </div>
         </div>
       </div>

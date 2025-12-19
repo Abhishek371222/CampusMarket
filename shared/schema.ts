@@ -5,10 +5,17 @@ import { z } from "zod";
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
+  email: text("email").notNull().unique(),
   password: text("password").notNull(),
   name: text("name").notNull(),
   campus: text("campus").default("Main Campus"),
   avatar: text("avatar"),
+  bio: text("bio").default(""),
+  phone: text("phone"),
+  rating: decimal("rating").default("5.0"),
+  reviewCount: integer("review_count").default(0),
+  totalListings: integer("total_listings").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const products = pgTable("products", {
@@ -31,6 +38,32 @@ export const orders = pgTable("orders", {
   status: text("status").notNull(), // Processing, Shipped, Delivered
   createdAt: timestamp("created_at").defaultNow(),
   items: jsonb("items").notNull(), // Array of product details
+});
+
+export const reviews = pgTable("reviews", {
+  id: serial("id").primaryKey(),
+  productId: integer("product_id").notNull(),
+  sellerId: integer("seller_id").notNull(),
+  buyerId: integer("buyer_id").notNull(),
+  rating: integer("rating").notNull(), // 1-5
+  comment: text("comment"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const favorites = pgTable("favorites", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  productId: integer("product_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const messages = pgTable("messages", {
+  id: serial("id").primaryKey(),
+  senderId: integer("sender_id").notNull(),
+  receiverId: integer("receiver_id").notNull(),
+  content: text("content").notNull(),
+  read: boolean("read").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });

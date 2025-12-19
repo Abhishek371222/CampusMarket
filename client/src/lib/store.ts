@@ -212,3 +212,23 @@ export const useCollegeFilter = create<CollegeFilterState>()(
     }
   )
 );
+
+// Theme Store for Dark Mode
+interface ThemeState {
+  isDark: boolean;
+  toggleTheme: () => void;
+  setTheme: (isDark: boolean) => void;
+}
+
+export const useTheme = create<ThemeState>()(
+  persist(
+    (set) => ({
+      isDark: false,
+      toggleTheme: () => set((state) => ({ isDark: !state.isDark })),
+      setTheme: (isDark) => set({ isDark }),
+    }),
+    {
+      name: 'campus-market-theme',
+    }
+  )
+);

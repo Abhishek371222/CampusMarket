@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
-import { useCart, useAuth, useFavorites, useFollow } from "@/lib/store";
-import { ShoppingCart, User, Menu, X, LogOut, Package, Heart, Users } from "lucide-react";
-import { useState } from "react";
+import { useCart, useAuth, useFavorites, useFollow, useTheme } from "@/lib/store";
+import { ShoppingCart, User, Menu, X, LogOut, Package, Heart, Users, Moon, Sun } from "lucide-react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {
@@ -23,27 +23,48 @@ export function Navbar() {
   const { following } = useFollow();
   const followingCount = following.length;
   const { user, isAuthenticated, logout } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Apply theme to document
+  useEffect(() => {
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDark]);
 
   const isActive = (path: string) => location === path;
 
   return (
-    <nav className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
+    <nav className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white/95 backdrop-blur-2xl shadow-sm">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center gap-8">
-            <Link href="/" className="flex items-center gap-2 group">
-              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-bold font-display text-xl shadow-lg shadow-primary/40 group-hover:shadow-primary/60 group-hover:scale-110 transition-all duration-300">
+            <Link href="/" className="flex items-center gap-3 group">
+              <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-primary via-blue-500 to-accent flex items-center justify-center text-white font-bold font-display text-lg shadow-lg shadow-primary/50 group-hover:shadow-primary/70 group-hover:scale-110 transition-all duration-300 flex-shrink-0">
                 CM
               </div>
-              <span className="font-display font-bold text-lg tracking-tight hidden sm:block text-foreground">
-                Campus<span className="text-primary">Market</span>
-              </span>
+              <div className="hidden sm:block">
+                <span className="font-display font-bold text-lg tracking-tight text-slate-900">
+                  Campus<span className="text-primary">Market</span>
+                </span>
+              </div>
             </Link>
 
             <div className="hidden md:flex items-center gap-6 text-sm font-medium">
               <Link href="/" className={isActive("/") ? "text-primary" : "text-muted-foreground hover:text-foreground transition-colors"}>
-                Browse
+                Home
+              </Link>
+              <Link href="/products" className={isActive("/products") ? "text-primary" : "text-muted-foreground hover:text-foreground transition-colors"}>
+                All Products
+              </Link>
+              <Link href="/features" className={isActive("/features") ? "text-primary" : "text-muted-foreground hover:text-foreground transition-colors"}>
+                Features
+              </Link>
+              <Link href="/getting-started" className={isActive("/getting-started") ? "text-primary" : "text-muted-foreground hover:text-foreground transition-colors"}>
+                Help
               </Link>
               <Link href="/people" className={isActive("/people") ? "text-primary" : "text-muted-foreground hover:text-foreground transition-colors"}>
                 People
@@ -106,6 +127,21 @@ export function Navbar() {
               </Button>
             </Link>
 
+            {/* Dark Mode Toggle */}
+            <Button
+              onClick={toggleTheme}
+              variant="ghost"
+              size="icon"
+              className="hover:bg-primary/10 transition-colors"
+              title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+            >
+              {isDark ? (
+                <Sun className="h-5 w-5 text-amber-500 animate-spin" style={{ animationDuration: '3s' }} />
+              ) : (
+                <Moon className="h-5 w-5 text-slate-600" />
+              )}
+            </Button>
+
             {isAuthenticated && user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -128,6 +164,12 @@ export function Navbar() {
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/dashboard" className="cursor-pointer">
+                      <Package className="mr-2 h-4 w-4" />
+                      <span>Dashboard</span>
+                    </Link>
+                  </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link href="/profile" className="cursor-pointer">
                       <User className="mr-2 h-4 w-4" />

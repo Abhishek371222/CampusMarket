@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
+import { AIChatbot } from "@/components/AIChatbot";
 
 // Pages
 import HomePage from "@/pages/HomePage";
@@ -17,6 +18,10 @@ import OrdersPage from "@/pages/OrdersPage";
 import ProfilePage from "@/pages/ProfilePage";
 import SellItemPage from "@/pages/SellItemPage";
 import SearchPage from "@/pages/SearchPage";
+import AllProductsPage from "@/pages/AllProductsPage";
+import FeaturesPage from "@/pages/FeaturesPage";
+import DashboardPage from "@/pages/DashboardPage";
+import GettingStartedPage from "@/pages/GettingStartedPage";
 import MyListingsPage from "@/pages/MyListingsPage";
 import SavedItemsPage from "@/pages/SavedItemsPage";
 import ReviewsPage from "@/pages/ReviewsPage";
@@ -37,7 +42,11 @@ function Router() {
       <Route path="/login" component={LoginPage} />
       <Route path="/signup" component={SignupPage} />
       <Route path="/profile" component={ProfilePage} />
+      <Route path="/dashboard" component={DashboardPage} />
       <Route path="/sell" component={SellItemPage} />
+      <Route path="/products" component={AllProductsPage} />
+      <Route path="/features" component={FeaturesPage} />
+      <Route path="/getting-started" component={GettingStartedPage} />
       <Route path="/search" component={SearchPage} />
       <Route path="/my-listings" component={MyListingsPage} />
       <Route path="/saved-items" component={SavedItemsPage} />
@@ -79,6 +88,9 @@ function App() {
               return !isAuthPage && <Footer />;
             }}
           </Route>
+
+          {/* AI Chatbot */}
+          <AIChatbot />
         </div>
       </TooltipProvider>
     </QueryClientProvider>
